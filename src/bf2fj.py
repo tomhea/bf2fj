@@ -8,9 +8,11 @@ from definitions import BRAINFUCK_DIR, FLIPJUMP_DIR
 from bf2fj_compiler import Bf2FjCompiler
 
 
+DEBUG_FLAGS = '-d --debug-ops-list 1000'
+
+
 BRAINFUCK_PROGRAM_PATH = BRAINFUCK_DIR / 'hello_world.bf'
 FLIPJUMP_PROGRAM_PATH = FLIPJUMP_DIR / 'hello_world.fj'
-
 
 FIXED_INPUT = b''
 EXPECTED_OUTPUT = b'Hello World!\n'
@@ -18,7 +20,7 @@ EXPECTED_OUTPUT = b'Hello World!\n'
 
 def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: bytes, expected_output: bytes) -> bool:
     assemble_run_according_to_cmd_line_args(cmd_line_args=shlex.split(
-        f'"{flipjump_code_path}"'
+        f'"{flipjump_code_path}" {DEBUG_FLAGS}'
     ))
     return False    # TODO use fixed input as input, and assert that the output is exactly expected_output
 

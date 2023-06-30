@@ -61,7 +61,7 @@ hex.sub.init
 def inc_ptr < inc_ptr {
     call inc_ptr
 }
-inc_ptr:    // '>'
+inc_ptr:    // '>'  ptr++
     hex.ptr_add ptr, HEXES_IN_BYTE
     return
 
@@ -69,7 +69,7 @@ inc_ptr:    // '>'
 def dec_ptr < dec_ptr {
     call dec_ptr
 }
-dec_ptr:    // '<'
+dec_ptr:    // '<'  ptr--
     hex.ptr_sub ptr, HEXES_IN_BYTE
     return
 
@@ -77,7 +77,7 @@ dec_ptr:    // '<'
 def inc_data < inc_data {
     call inc_data
 }
-inc_data:   // '+'
+inc_data:   // '+'  (*ptr)++
     read_pointed_byte_to_temp_byte
     hex.inc HEXES_IN_BYTE, temp_byte
     write_temp_byte_to_pointed_byte
@@ -87,7 +87,7 @@ inc_data:   // '+'
 def dec_data < dec_data {
     call dec_data
 }
-dec_data:   // '-'
+dec_data:   // '-'  (*ptr)--
     read_pointed_byte_to_temp_byte
     hex.dec HEXES_IN_BYTE, temp_byte
     write_temp_byte_to_pointed_byte
@@ -97,7 +97,7 @@ dec_data:   // '-'
 def output < output {
     call output
 }
-output:     // '.'
+output:     // '.'  print_byte(*ptr)
     read_pointed_byte_to_temp_byte
     hex.print temp_byte
     return
@@ -106,28 +106,28 @@ output:     // '.'
 def input < input {
     call input
 }
-input:      // ','
+input:      // ','  *ptr = input_byte()
     read_pointed_byte_to_temp_byte
     hex.input temp_byte
     write_temp_byte_to_pointed_byte
     return
 
 
-def loop_start after_loop_end_label < loop_start {
+def loop_start after_loop_end_label < loop_start, temp_byte {
     call loop_start
-    // TODO implement
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
 }
-loop_start: // '['
-    // TODO implement
+loop_start: // '['  if (*ptr == 0) goto loop-end
+    read_pointed_byte_to_temp_byte
     return
 
 
-def loop_end after_loop_start_label < loop_end {
+def loop_end after_loop_start_label < loop_end, temp_byte {
     call loop_end
-    // TODO implement
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
 }
-loop_end:   // ']'
-    // TODO implement
+loop_end:   // ']'  if (*ptr != 0) goto loop-start
+    read_pointed_byte_to_temp_byte
     return
 
 
@@ -143,3 +143,4 @@ stl.loop
 
 
 brainfuck_memory:
+reserve dw * !!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!

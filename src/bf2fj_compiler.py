@@ -1,12 +1,14 @@
-from functools import cached_property
 from typing import List, Union
 
 from definitions import SOURCE_DIR
-from src.bf_classes import BrainfuckNonLoopOps, LineComment, LoopOpWithContext, BrainfuckLoopOps
+from src.bf_classes import BrainfuckNonLoopOps, LineComment, LoopOpWithContext, BrainfuckLoopOps, \
+    BrainfuckUnbalancedBrackets
 
 FLIPJUMP_OUTPUT_FORMAT_FILE = SOURCE_DIR / 'flipjump_output_format.fj'
-COMPILED_BRAINFUCK_OPS_SPOT = '!!!HERE_THE_COMPILED_BRAINFUCK_OPS_WILL_BE!!!'
+COMPILED_BRAINFUCK_OPS_SPOT__FJ_FORMAT_CONST = '!!!HERE_THE_COMPILED_BRAINFUCK_OPS_WILL_BE!!!'
+NUMBER_OF_BRAINFUCK_DATA_CELLS__FJ_FORMAT_CONST = "!!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!"
 
+DEFAULT_NUMBER_OF_BRAINFUCK_DATA_CELLS = 30000
 
 _UNDEFINED_INDEX = -1
 _FIRST_LINE_INDEX = 1
@@ -18,14 +20,18 @@ class Bf2FjCompiler:
     current_line: int
     loop_start_indices_stack: List[int]
 
-    def __init__(self, brainfuck_code: str):
+    def __init__(self, brainfuck_code: str, *,
+                 number_of_brainfuck_cells: int = DEFAULT_NUMBER_OF_BRAINFUCK_DATA_CELLS):
         self.brainfuck_code = brainfuck_code
+        self.number_of_brainfuck_cells = number_of_brainfuck_cells
 
     def _insert_current_line_comment(self) -> None:
         """
         Register the current line-comment, and start a new empty one.
         """
-        self.brainfuck_ops.append(LineComment(self.current_comment))
+        comment = self.current_comment.strip()
+        if comment:
+            self.brainfuck_ops.append(LineComment(comment))
         self.current_comment = ''
 
     def _verify_and_handle_non_loop_op(self, current_char: str) -> None:
@@ -44,24 +50,27 @@ class Bf2FjCompiler:
         Otherwise, raise an exception.
         :param current_char: the currently-processed char from the brainfuck code.
         @raises ValueError: if current_char doesn't represent a loop op.
+        @raises BrainfuckUnbalancedBrackets: if current is loop-end, but we aren't in any loop.
         """
         brainfuck_loop_op = BrainfuckLoopOps(current_char)   # raises ValueError if current_char matches nothing.
         self._insert_current_line_comment()
 
+        current_loop_op_index = len(self.brainfuck_ops)
         if brainfuck_loop_op == BrainfuckLoopOps.LOOP_START:
-            current_loop_op_index = len(self.brainfuck_ops) + 1
             self.brainfuck_ops.append(LoopOpWithContext(brainfuck_loop_op, current_loop_op_index, _UNDEFINED_INDEX))
             self.loop_start_indices_stack.append(current_loop_op_index)
         else:
-            current_loop_op_index = len(self.brainfuck_ops) + 1
-            loop_start_index = self.loop_start_indices_stack.pop()  # TODO informative errors if pop fails
-            self.brainfuck_ops.append(LoopOpWithContext(brainfuck_loop_op, current_loop_op_index, loop_start_index))
-            self.brainfuck_ops[loop_start_index].matching_op_index = current_loop_op_index
+            try:
+                loop_start_index = self.loop_start_indices_stack.pop()
+                self.brainfuck_ops.append(LoopOpWithContext(brainfuck_loop_op, current_loop_op_index, loop_start_index))
+                self.brainfuck_ops[loop_start_index].matching_op_index = current_loop_op_index
+            except IndexError:
+                raise BrainfuckUnbalancedBrackets("Error: Encountered ']' but we aren't in any loop.")
 
     def _handle_non_op_char(self, current_char: str) -> None:
         """
         If current_char is a new-line, register a new comment line. Otherwise, append char to the current comment line.
-        :param current_char: the currently-processed char from the brainfuck code.
+        @param current_char: the currently-processed char from the brainfuck code.
         """
         if current_char == '\n':
             self._insert_current_line_comment()
@@ -69,7 +78,11 @@ class Bf2FjCompiler:
         else:
             self.current_comment += current_char
 
-    def get_brainfuck_ops(self) -> List[Union[BrainfuckNonLoopOps, LineComment]]:
+    def get_brainfuck_ops(self) -> List[Union[BrainfuckNonLoopOps, LoopOpWithContext, LineComment]]:
+        """
+        @raises BrainfuckUnbalancedBrackets: if brackets aren't ordered right.
+        @return: The list of
+        """
         self.brainfuck_ops = []
         self.current_comment = ''
         self.current_line = _FIRST_LINE_INDEX
@@ -89,7 +102,8 @@ class Bf2FjCompiler:
             except ValueError:  # it's comment.
                 self._handle_non_op_char(char)
 
-        # TODO informative error if '[', ']' stack isn't empty.
+        if self.loop_start_indices_stack:
+            raise BrainfuckUnbalancedBrackets("Brainfuck program ended while still in a loop.")
         return self.brainfuck_ops
 
     # @cached_property
@@ -121,10 +135,12 @@ class Bf2FjCompiler:
 
         fj_code_lines = []
         for brainfuck_op in brainfuck_ops_with_context:
-            fj_code_lines.append(str(brainfuck_op))    # TODO something
+            fj_code_lines.append(str(brainfuck_op))
         fj_code__brainfuck_ops = '\n'.join(fj_code_lines)
 
         with open(FLIPJUMP_OUTPUT_FORMAT_FILE, 'r') as fj_format:
             generic_fj_code__without_brainfuck_ops = fj_format.read()
 
-        return generic_fj_code__without_brainfuck_ops.replace(COMPILED_BRAINFUCK_OPS_SPOT, fj_code__brainfuck_ops)
+        return generic_fj_code__without_brainfuck_ops\
+            .replace(COMPILED_BRAINFUCK_OPS_SPOT__FJ_FORMAT_CONST, fj_code__brainfuck_ops)\
+            .replace(NUMBER_OF_BRAINFUCK_DATA_CELLS__FJ_FORMAT_CONST, str(self.number_of_brainfuck_cells))

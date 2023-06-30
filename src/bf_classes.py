@@ -2,6 +2,14 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+class BrainfuckException(Exception):
+    pass
+
+
+class BrainfuckUnbalancedBrackets(BrainfuckException):
+    pass
+
+
 class BrainfuckOps(Enum):
     pass
 
@@ -15,7 +23,7 @@ class BrainfuckNonLoopOps(BrainfuckOps):
     INPUT = ','
 
     def __str__(self):
-        return ''   # TODO implement with actual fj-code string
+        return self.name.lower()
 
 
 class BrainfuckLoopOps(BrainfuckOps):
@@ -28,7 +36,7 @@ class LineComment:
     text_line: str
 
     def __str__(self):
-        return f'//{self.text_line}\n'
+        return f'// {self.text_line}'
 
 
 _LOOP_LABELS_PREFIX = 'loop_op_'
@@ -41,7 +49,7 @@ class LoopOpWithContext:
     matching_op_index: int
 
     def __str__(self) -> str:
-        macro_name = 'loop_start' if self.loop_op_type == BrainfuckLoopOps.LOOP_START else 'loop_end'
+        macro_name = self.loop_op_type.name.lower()
         this_label = f'{_LOOP_LABELS_PREFIX}{self.current_op_index}'
         matching_label = f'{_LOOP_LABELS_PREFIX}{self.matching_op_index}'
         return f'{macro_name} {matching_label}\n' \

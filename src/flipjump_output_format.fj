@@ -113,7 +113,7 @@ input:      // ','
     return
 
 
-def loop_start < loop_start {
+def loop_start after_loop_end_label < loop_start {
     call loop_start
     // TODO implement
 }
@@ -122,7 +122,7 @@ loop_start: // '['
     return
 
 
-def loop_end < loop_end {
+def loop_end after_loop_start_label < loop_end {
     call loop_end
     // TODO implement
 }

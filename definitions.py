@@ -5,4 +5,5 @@ ROOT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))  # This is the Proje
 
 BRAINFUCK_DIR = ROOT_DIR / 'brainfuck'
 FLIPJUMP_DIR = ROOT_DIR / 'flipjump'
+SOURCE_DIR = ROOT_DIR / 'src'
 

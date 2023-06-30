@@ -8,6 +8,7 @@ from definitions import SOURCE_DIR
 
 
 FLIPJUMP_OUTPUT_FORMAT_FILE = SOURCE_DIR / 'flipjump_output_format.fj'
+COMPILED_BRAINFUCK_OPS_SPOT = '!!!HERE_THE_COMPILED_BRAINFUCK_OPS_WILL_BE!!!'
 
 
 class BrainfuckOps(Enum):
@@ -67,9 +68,4 @@ class Bf2FjCompiler:
         with open(FLIPJUMP_OUTPUT_FORMAT_FILE, 'r') as fj_format:
             generic_fj_code__without_brainfuck_ops = fj_format.read()
 
-        # return str(string.Formatter().vformat(
-        #     generic_fj_code__without_brainfuck_ops, (), FormatDict(BRAINFUCK_1234567890_CODE=fj_code__brainfuck_ops)))
-
-        # TODO decide how to connect the brainfuck-inspired fj-code with the flipjump file
-        return generic_fj_code__without_brainfuck_ops.format_map(
-            FormatDict(BRAINFUCK_1234567890_CODE=fj_code__brainfuck_ops))
+        return generic_fj_code__without_brainfuck_ops.replace(COMPILED_BRAINFUCK_OPS_SPOT, fj_code__brainfuck_ops)

@@ -1,4 +1,8 @@
+import shlex
 from pathlib import Path
+
+from flipjump.src.defs import PrintTimer
+from flipjump.src.fj import assemble_run_according_to_cmd_line_args
 
 from definitions import BRAINFUCK_DIR, FLIPJUMP_DIR
 from bf2fj_compiler import Bf2FjCompiler
@@ -13,7 +17,10 @@ EXPECTED_OUTPUT = b'Hello World!\n'
 
 
 def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: bytes, expected_output: bytes) -> bool:
-    pass
+    assemble_run_according_to_cmd_line_args(cmd_line_args=shlex.split(
+        f'"{flipjump_code_path}"'
+    ))
+    return False    # TODO use fixed input as input, and assert that the output is exactly expected_output
 
 
 def main() -> None:
@@ -21,7 +28,8 @@ def main() -> None:
         bf_code = bf_file.read()
 
     compiler = Bf2FjCompiler(bf_code)
-    fj_code = compiler.get_compiled_code()
+    with PrintTimer('  compile bf->fj:  '):
+        fj_code = compiler.get_compiled_code()
 
     with open(FLIPJUMP_PROGRAM_PATH, 'w') as fj_file:
         fj_file.write(fj_code)

@@ -1,17 +1,17 @@
 HEXES_IN_BYTE = 2
 
-startup
+stl.startup
 ;brainfuck_start
 
 ptr: hex.vec w/4, brainfuck_memory  // this is the main pointer that brainfuck operates on.
 
 ret_register: bit.bit   // used for the fast-calls.
 // Complexity: @-1
-def call label {
+def call label < ret_register {
     stl.fcall label, ret_register
 }
 // Complexity: 1
-def return {
+def return < ret_register {
     stl.fret ret_register
 }
 
@@ -20,13 +20,13 @@ temp_byte: hex.vec HEXES_IN_BYTE
 
 // Time Complexity: 11w@ + 24@ + 28
 //   temp_byte = _original_byte = *ptr[:2]
-def read_pointed_byte_to_temp_byte {
+def read_pointed_byte_to_temp_byte < ptr, _original_byte, temp_byte {
     hex.zero HEXES_IN_BYTE, _original_byte
 
-    xor_from_ptr _original_byte, ptr       // read 4-lsb
+    hex.xor_from_ptr _original_byte, ptr       // read 4-lsb
     hex.ptr_inc ptr
 
-    xor_from_ptr _original_byte + dw, ptr  // read 4-msb
+    hex.xor_from_ptr _original_byte + dw, ptr  // read 4-msb
     hex.ptr_dec ptr
 
     hex.mov HEXES_IN_BYTE, temp_byte, _original_byte
@@ -34,29 +34,31 @@ def read_pointed_byte_to_temp_byte {
 
 // Time Complexity: w(0.5@+2) + 9@+12   (if msh changed: w(@+4) + 16@+24).
 //   *ptr[:2] ^= temp_byte ^ _original_byte
-def write_temp_byte_to_pointed_byte @ xor_2nd_hex, end {
+def write_temp_byte_to_pointed_byte @ xor_2nd_hex, end < ptr, _original_byte, temp_byte {
     hex.xor HEXES_IN_BYTE, temp_byte, _original_byte
 
-    hex.xor_to_ptr, temp_byte
+    hex.xor_to_ptr ptr, temp_byte
 
   xor_2nd_hex:
-    hex.if0 HEXES_IN_BYTE temp_byte + dw, end
+    hex.if0 HEXES_IN_BYTE, temp_byte + dw, end
     hex.ptr_inc ptr
-    hex.xor_to_ptr, temp_byte + dw
+    hex.xor_to_ptr ptr, temp_byte + dw
     hex.ptr_dec ptr
 
   end:
 }
 
 
-stl.ptr_init    // inits
+// inits:
+stl.ptr_init
+hex.tables.init_shared
 hex.add.init
 hex.sub.init
 
 
 // TODO add time complexities to all the 8 op-macros.
 
-def inc_ptr {
+def inc_ptr < inc_ptr {
     call inc_ptr
 }
 inc_ptr:    // '>'
@@ -64,7 +66,7 @@ inc_ptr:    // '>'
     return
 
 
-def dec_ptr {
+def dec_ptr < dec_ptr {
     call dec_ptr
 }
 dec_ptr:    // '<'
@@ -72,7 +74,7 @@ dec_ptr:    // '<'
     return
 
 
-def inc_data {
+def inc_data < inc_data {
     call inc_data
 }
 inc_data:   // '+'
@@ -82,7 +84,7 @@ inc_data:   // '+'
     return
 
 
-def dec_data {
+def dec_data < dec_data {
     call dec_data
 }
 dec_data:   // '-'
@@ -92,7 +94,7 @@ dec_data:   // '-'
     return
 
 
-def output {
+def output < output {
     call output
 }
 output:     // '.'
@@ -101,7 +103,7 @@ output:     // '.'
     return
 
 
-def input {
+def input < input {
     call input
 }
 input:      // ','
@@ -111,7 +113,7 @@ input:      // ','
     return
 
 
-def loop_start {
+def loop_start < loop_start {
     call loop_start
     // TODO implement
 }
@@ -120,7 +122,7 @@ loop_start: // '['
     return
 
 
-def loop_end {
+def loop_end < loop_end {
     call loop_end
     // TODO implement
 }
@@ -135,7 +137,7 @@ loop_end:   // ']'
 
 brainfuck_start:
 
-{BRAINFUCK_1234567890_CODE}
+!!!HERE_THE_COMPILED_BRAINFUCK_OPS_WILL_BE!!!
 
 stl.loop
 

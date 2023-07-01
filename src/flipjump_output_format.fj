@@ -1,11 +1,12 @@
 HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
 DEFAULT_LABEL_PADDINGS = 16
 // standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
 
 stl.startup
 ;brainfuck_start
 
-ptr: hex.vec w/4, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
 
 ret_register: bit.bit           // used for the brainfuck ops fast-calls.
 inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
@@ -28,6 +29,13 @@ def return_inner < inner_ret_register {
 
 _original_byte: hex.vec HEXES_IN_BYTE   // mustn't be touched.
 temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
 
 //  Time Complexity: 11w@ + 24@+28
 // Space Complexity about: 12.5w@, which is ~8,400 ops (according to the standard values).
@@ -99,6 +107,8 @@ hex.sub.init
 
 
 
+// ---------- Pointer Macros ----------
+
 // Time Complexity: 10@+14  (=224 according to the standard values)
 //   Executes the '>' command:  ptr++
 def inc_ptr < inc_ptr {
@@ -120,6 +130,10 @@ dec_ptr:    // space-complexity is about: 600 (according to the standard values)
     hex.ptr_sub ptr, HEXES_IN_BYTE  // complexity note: hex.sub_constant:n_const is 1
     return
 
+
+
+
+// ---------- Data Macros ----------
 
 // Time Complexity: w(11.5@+2) + 36@+41  (~8600 according to the standard values)
 //   Executes the '+' command:  (*ptr)++
@@ -147,6 +161,10 @@ dec_data:   // space-complexity is about: 131 (according to the standard values)
     return
 
 
+
+
+// ---------- IO Macros ----------
+
 // Time Complexity: 11w@ + 26@+28  (~8000 according to the standard values)
 //   Executes the '.' command:  print_byte(*ptr)
 def output < output {
@@ -172,6 +190,10 @@ input:      // space-complexity is about: 161 (according to the standard values)
     return
 
 
+
+
+// ---------- Looping Macros ----------
+
 // Time Complexity: 6.6w@ + 6@+5  (~4600 according to the standard values)
 //   Executes the '[' command:  if (*ptr == 0) goto loop-end
 def loop_start after_loop_end_label < read_is_pointed_byte_zero_to_temp_byte_lsw, temp_byte {
@@ -187,6 +209,76 @@ def loop_end after_loop_start_label < read_is_pointed_byte_zero_to_temp_byte_lsw
 
 
 
+// TODO document 4 optimization macros, and their complexities.
+
+// ---------- Pointer Optimization Macros ----------
+
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * HEXES_IN_BYTE * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * HEXES_IN_BYTE * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about:
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about:
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
 
 brainfuck_start:
 
@@ -196,4 +288,4 @@ stl.loop
 
 
 brainfuck_memory:
-reserve dw * !!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!
+reserve dw * HEXES_IN_BYTE * !!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!

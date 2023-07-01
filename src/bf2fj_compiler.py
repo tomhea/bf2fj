@@ -37,7 +37,7 @@ class Bf2FjCompiler:
     def _verify_and_handle_non_loop_op(self, current_char: str) -> None:
         """
         If current_char is a non-loop-op, register and handle it. Otherwise, raise an exception.
-        :param current_char: the currently-processed char from the brainfuck code.
+        @param current_char: the currently-processed char from the brainfuck code.
         @raises ValueError: if current_char doesn't represent a non-loop op.
         """
         brainfuck_loop_op = BrainfuckNonLoopOps(current_char)   # raises ValueError if current_char matches nothing.
@@ -49,7 +49,7 @@ class Bf2FjCompiler:
         """
         If current_char is a loop-op, register and handle it (appends LoopOpWithContext).
         Otherwise, raise an exception.
-        :param current_char: the currently-processed char from the brainfuck code.
+        @param current_char: the currently-processed char from the brainfuck code.
         @raises ValueError: if current_char doesn't represent a loop op.
         @raises BrainfuckUnbalancedBrackets: if current is loop-end, but we aren't in any loop.
         """
@@ -81,8 +81,9 @@ class Bf2FjCompiler:
 
     def get_brainfuck_ops(self) -> List[Union[BrainfuckNonLoopOps, LoopOpWithContext, LineComment]]:
         """
+        Create the list of brainfuck ops, with brackets-context, and also the original comments.
         @raises BrainfuckUnbalancedBrackets: if brackets aren't ordered right.
-        @return: The list of
+        @return: The list of brainfuck ops.
         """
         self.brainfuck_ops = []
         self.current_comment = ''
@@ -108,11 +109,12 @@ class Bf2FjCompiler:
         return self.brainfuck_ops
 
     def get_compiled_code(self) -> str:
+        """
+        @return: The .fj file content, that was compiled from the given brainfuck_code.
+        """
         brainfuck_ops_with_context = self.get_brainfuck_ops()
 
-        fj_code_lines = []
-        for brainfuck_op in brainfuck_ops_with_context:
-            fj_code_lines.append(str(brainfuck_op))
+        fj_code_lines = list(map(str, brainfuck_ops_with_context))
         fj_code__brainfuck_ops = '\n'.join(fj_code_lines)
 
         with open(FLIPJUMP_OUTPUT_FORMAT_FILE, 'r') as fj_format:

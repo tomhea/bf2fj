@@ -72,6 +72,7 @@ hex.sub.init
 
 
 // TODO add time complexities to all the 8 op-macros.
+// TODO document every macro, or everything that requires a bit of understanding.
 
 def inc_ptr < inc_ptr {
     call inc_ptr

@@ -20,6 +20,13 @@ EXPECTED_OUTPUT = b'Hello World!\n'
 
 
 def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: bytes, expected_output: bytes) -> bool:
+    """
+    Run the given flip-jump program, give it the fixed-input, and check if the output is as expected.
+    @param flipjump_code_path: A path to a (non-compiled) flip-jump code file.
+    @param fixed_input: This will be the input to the fj-code-file.
+    @param expected_output: The expected output the fj-code-file would output given the fixed_input input.
+    @return: True if the file's output matched the expected-output, while the input was fixed-input.
+    """
     assemble_run_according_to_cmd_line_args(cmd_line_args=shlex.split(
         f'"{flipjump_code_path}" {DEBUG_FLAGS} {GENERAL_FLAGS}'
     ))

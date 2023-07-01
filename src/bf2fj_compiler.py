@@ -42,6 +42,7 @@ class Bf2FjCompiler:
         """
         brainfuck_loop_op = BrainfuckNonLoopOps(current_char)   # raises ValueError if current_char matches nothing.
         self._insert_current_line_comment()
+        # TODO offer option to optimize {+-}* and {<>}* (update self.brainfuck_ops[-1] instead of appending a new op).
         self.brainfuck_ops.append(brainfuck_loop_op)
 
     def _verify_and_handle_loop_op(self, current_char: str) -> None:
@@ -105,30 +106,6 @@ class Bf2FjCompiler:
         if self.loop_start_indices_stack:
             raise BrainfuckUnbalancedBrackets("Brainfuck program ended while still in a loop.")
         return self.brainfuck_ops
-
-    # @cached_property
-    # def brainfuck_ops_with_context(self):
-    #     ops_with_context = []
-    #     loop_start_indices_stack = []
-    #
-    #     for i, op in enumerate(self.brainfuck_ops):
-    #         if op == BrainfuckNonLoopOps.LoopStart:
-    #             loop_start_indices_stack.append(i)
-    #             ops_with_context.append(LoopOpWithContext(op, _UNDEFINED_INDEX))
-    #
-    #         elif op == BrainfuckNonLoopOps.LoopEnd:
-    #             try:
-    #                 start_index = loop_start_indices_stack.pop()
-    #             except IndexError:
-    #                 raise SyntaxError("Brainfuck loop closed ")
-    #             ops_with_context[start_index].matching_op_index = i
-    #             ops_with_context.append(LoopOpWithContext(op, start_index))
-    #
-    #         else:
-    #             ops_with_context.append(op)
-    #
-    #     assert not loop_start_indices_stack, "Brainfuck program contains more ']' than '['"
-    #     return ops_with_context
 
     def get_compiled_code(self) -> str:
         brainfuck_ops_with_context = self.get_brainfuck_ops()

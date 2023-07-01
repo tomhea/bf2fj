@@ -32,6 +32,21 @@ def read_pointed_byte_to_temp_byte < ptr, _original_byte, temp_byte {
     hex.mov HEXES_IN_BYTE, temp_byte, _original_byte
 }
 
+// Time Complexity: 5.85w@ + @+1 (on average, based on that if1 will be false on 1/16 of the times).
+//   temp_byte[:1] := 0, only if (*ptr[:2] == 0). otherwise not 0.
+def read_is_pointed_byte_zero_to_temp_byte_lsw @ end < ptr, temp_byte {
+    hex.zero temp_byte
+
+    hex.xor_from_ptr temp_byte, ptr       // read 4-lsb
+    hex.if1 temp_byte, end
+
+    hex.ptr_inc ptr
+    hex.xor_from_ptr temp_byte, ptr  // read 4-msb
+    hex.ptr_dec ptr
+
+  end:
+}
+
 // Time Complexity: w(0.5@+2) + 9@+12   (if msh changed: w(@+4) + 16@+24).
 //   *ptr[:2] ^= temp_byte ^ _original_byte
 def write_temp_byte_to_pointed_byte @ xor_2nd_hex, end < ptr, _original_byte, temp_byte {
@@ -115,19 +130,19 @@ input:      // ','  *ptr = input_byte()
 
 def loop_start after_loop_end_label < loop_start, temp_byte {
     call loop_start
-    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+    hex.if0 temp_byte, after_loop_end_label
 }
 loop_start: // '['  if (*ptr == 0) goto loop-end
-    read_pointed_byte_to_temp_byte
+    read_is_pointed_byte_zero_to_temp_byte_lsw
     return
 
 
 def loop_end after_loop_start_label < loop_end, temp_byte {
     call loop_end
-    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+    hex.if1 temp_byte, after_loop_start_label
 }
 loop_end:   // ']'  if (*ptr != 0) goto loop-start
-    read_pointed_byte_to_temp_byte
+    read_is_pointed_byte_zero_to_temp_byte_lsw
     return
 
 

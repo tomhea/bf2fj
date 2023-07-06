@@ -1,14 +1,7 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Union
-
-
-class BrainfuckException(Exception):
-    pass
-
-
-class BrainfuckUnbalancedBrackets(BrainfuckException):
-    pass
 
 
 class BrainfuckOps(Enum):
@@ -23,7 +16,7 @@ class BrainfuckNonLoopOps(BrainfuckOps):
     OUTPUT = '.'
     INPUT = ','
 
-    def __str__(self) -> str:
+    def to_fj(self) -> str:
         """
         @return: the fj-macro that executes the [self] brainfuck-op.
         """
@@ -37,9 +30,12 @@ class BrainfuckLoopOps(BrainfuckOps):
 
 @dataclass
 class LineComment:
+    """
+    Sequence of consecutive non-brainfuck chars, that ends by a new-line / EOF / brainfuck-char.
+    """
     text_line: str
 
-    def __str__(self) -> str:
+    def to_fj(self) -> str:
         """
         @return: A flip-jump line comment with the given text.
         """
@@ -59,7 +55,7 @@ class LoopOpWithContext:
     current_op_index: int
     matching_op_index: int
 
-    def __str__(self) -> str:
+    def to_fj(self) -> str:
         """
         @return: the fj-macro that executes loop_start / loop_end, proceeds by the current-op label declaration.
         """
@@ -70,46 +66,60 @@ class LoopOpWithContext:
                f'{this_label}:'
 
 
-class OptimizationOp:
-    pass
+class OptimizationOp(ABC):
+    """
+    Abstract class for optimization-ops.
+    """
+    @abstractmethod
+    def to_fj(self) -> str:
+        pass
 
 
 @dataclass
-class OptimizationDataOp(OptimizationOp):
+class OptimizationDataOp(OptimizationOp, ABC):
     value: int
 
 
 class DataSetOp(OptimizationDataOp):
+    """
+    Optimization-op that represents a loop that sets Data to 0, followed by some DataInc/DataDec ops.
+    """
     FJ_MACRO_NAME = 'set_data'
 
-    def __str__(self):
+    def to_fj(self) -> str:
         ubyte_value = ((self.value % 256) + 256) % 256
         return f'{self.FJ_MACRO_NAME} {ubyte_value}'
 
 
-@dataclass
 class DataAddOp(OptimizationDataOp):
+    """
+    Optimization-op that represents multiple DataInc/DataDec ops.
+    """
     FJ_MACRO_NAME = 'add_data'
 
-    def __str__(self):
+    def to_fj(self) -> str:
         ubyte_value = ((self.value % 256) + 256) % 256
         return {
             0:   '',
-            1:   f'{str(BrainfuckNonLoopOps.INC_DATA)}',
-            255: f'{str(BrainfuckNonLoopOps.DEC_DATA)}',
+            1:   f'{BrainfuckNonLoopOps.INC_DATA.to_fj()}',
+            255: f'{BrainfuckNonLoopOps.DEC_DATA.to_fj()}',
         }.get(ubyte_value, f'{self.FJ_MACRO_NAME} {ubyte_value}')
 
 
 @dataclass
 class PtrAddOp(OptimizationOp):
+    """
+    Optimization-op that represents multiple PtrInc/PtrDec ops.
+    """
     FJ_POSITIVE_MACRO_NAME = 'add_ptr'
     FJ_NEGATIVE_MACRO_NAME = 'sub_ptr'
     MAX_ABS_VALUE = 255
     value: int
 
-    def __str__(self):
+    def to_fj(self) -> str:
         macro_name = self.FJ_POSITIVE_MACRO_NAME if self.value > 0 else self.FJ_NEGATIVE_MACRO_NAME
-        inc_dec_macro_name = str(BrainfuckNonLoopOps.INC_PTR if self.value > 0 else BrainfuckNonLoopOps.DEC_PTR)
+        inc_dec_macro_name = BrainfuckNonLoopOps.INC_PTR.to_fj() if self.value > 0 \
+            else BrainfuckNonLoopOps.DEC_PTR.to_fj()
         value = abs(self.value) % self.MAX_ABS_VALUE
 
         ops_prefix = f'{macro_name} {self.MAX_ABS_VALUE}\n' * (abs(self.value) // self.MAX_ABS_VALUE)

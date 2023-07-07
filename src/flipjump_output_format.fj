@@ -209,10 +209,11 @@ def loop_end after_loop_start_label < read_is_pointed_byte_zero_to_temp_byte_lsw
 
 
 
-// TODO document 4 optimization macros, and their complexities.
+// TODO document the time complexity for the next 4 optimization macros.
 
 // ---------- Pointer Optimization Macros ----------
 
+// Time Complexity: -----
 //   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
 def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
     hex.set \
@@ -222,7 +223,7 @@ def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
     call add_ptr
 }
 pad DEFAULT_LABEL_PADDINGS
-add_ptr:
+add_ptr:    // space-complexity is about: 699
     hex.add_shifted \
         w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
         ptr,            repetition_optimization_ptr_offset, \
@@ -230,6 +231,7 @@ add_ptr:
     return
 
 
+// Time Complexity: -----
 //   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
 def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
     hex.set \
@@ -239,7 +241,7 @@ def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
     call sub_ptr
 }
 pad DEFAULT_LABEL_PADDINGS
-sub_ptr:
+sub_ptr:    // space-complexity is about: 711
     hex.sub_shifted \
         w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
         ptr,            repetition_optimization_ptr_offset, \
@@ -252,26 +254,28 @@ sub_ptr:
 // ---------- Data Optimization Macros ----------
 
 
+// Time Complexity: -----
 //   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
 def add_data value < repetition_optimization_byte, add_data {
     hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
     call add_data
 }
 pad DEFAULT_LABEL_PADDINGS
-add_data:   // space-complexity is about:
+add_data:   // space-complexity is about: 313
     call_inner read_pointed_byte_to_temp_byte
     hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
     call_inner write_temp_byte_to_pointed_byte
     return
 
 
+// Time Complexity: -----
 //   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
 def set_data value < repetition_optimization_byte, set_data {
     hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
     call set_data
 }
 pad DEFAULT_LABEL_PADDINGS
-set_data:   // space-complexity is about:
+set_data:   // space-complexity is about: 173
     call_inner read_pointed_byte_to_temp_byte
     hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
     call_inner write_temp_byte_to_pointed_byte

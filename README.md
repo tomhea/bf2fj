@@ -1,5 +1,5 @@
 # bf2fj
-A Brainfuck to FlipJump compiler.
+A [Brainfuck](https://esolangs.org/wiki/Brainfuck) to [FlipJump](https://github.com/tomhea/flip-jump) Compiler.
 
 
 

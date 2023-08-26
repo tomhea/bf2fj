@@ -33,7 +33,7 @@ def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: byt
     :return: True if the file's output matched the expected-output, while the input was fixed-input.
     """
     
-    with TemporaryDirectory as tmp_dir:
+    with TemporaryDirectory() as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
         fjm_file_path = tmp_dir_path / f'{flipjump_code_path.stem}.fjm'
         debugging_file_path = tmp_dir_path / f'{fjm_file_path.name}{DEBUGGING_FILE_SUFFIX}'

@@ -11,7 +11,7 @@ from flipjump.io_devices.FixedIO import FixedIO
 from flipjump.utils.classes import TerminationCause, PrintTimer
 from flipjump.assembler import assembler
 
-from flipjump.fjm.fjm_consts import RelativeJumpVersion
+from flipjump.fjm.fjm_consts import CompressedVersion
 from flipjump.fjm.fjm_writer import Writer
 
 fjm_width = 32
@@ -44,7 +44,7 @@ def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: byt
 
         # assemble
         file_tuples = get_file_tuples([str(flipjump_code_path.absolute())], no_stl=False)
-        fjm_writer = Writer(fjm_file_path, fjm_width, RelativeJumpVersion)   # TODO use compressed when available
+        fjm_writer = Writer(fjm_file_path, fjm_width, CompressedVersion)
         assembler.assemble(file_tuples, fjm_width, fjm_writer, debugging_file_path=debugging_file_path)
 
         io_device = FixedIO(fixed_input)

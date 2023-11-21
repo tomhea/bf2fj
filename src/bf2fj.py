@@ -28,7 +28,7 @@ def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: byt
     """
     assemble_and_run_test_output([flipjump_code_path], fixed_input, expected_output,
                                  should_raise_assertion_error=True,
-                                 w=fjm_width, last_ops_debugging_list_length=DEBUG_INFO_LENGTH)
+                                 memory_width=fjm_width, last_ops_debugging_list_length=DEBUG_INFO_LENGTH)
 
 
 def compile_brainfuck_file_to_flipjump_file(brainfuck_file_path: Path, flipjump_file_path: Path) -> None:

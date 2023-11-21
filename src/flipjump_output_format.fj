@@ -3,8 +3,8 @@ BITS_IN_HEX = 4
 DEFAULT_LABEL_PADDINGS = 16
 // standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
 
-stl.startup
-;brainfuck_start
+stl.startup_and_init_pointers brainfuck_start
+
 
 ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
 
@@ -43,10 +43,10 @@ repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
 def read_pointed_byte_to_temp_byte < ptr, _original_byte, temp_byte {
     hex.zero HEXES_IN_BYTE, _original_byte
 
-    hex.xor_from_ptr _original_byte, ptr       // read 4-lsb
+    hex.xor_hex_from_ptr _original_byte, ptr       // read 4-lsb
     hex.ptr_inc ptr
 
-    hex.xor_from_ptr _original_byte + dw, ptr  // read 4-msb
+    hex.xor_hex_from_ptr _original_byte + dw, ptr  // read 4-msb
     hex.ptr_dec ptr
 
     hex.mov HEXES_IN_BYTE, temp_byte, _original_byte
@@ -62,11 +62,11 @@ read_pointed_byte_to_temp_byte:
 def read_is_pointed_byte_zero_to_temp_byte_lsw @ end < ptr, temp_byte {
     hex.zero temp_byte
 
-    hex.xor_from_ptr temp_byte, ptr     // read 4-lsb
+    hex.xor_hex_from_ptr temp_byte, ptr     // read 4-lsb
     hex.if1 temp_byte, end
 
     hex.ptr_inc ptr
-    hex.xor_from_ptr temp_byte, ptr     // read 4-msb
+    hex.xor_hex_from_ptr temp_byte, ptr     // read 4-msb
     hex.ptr_dec ptr
 
   end:
@@ -82,12 +82,12 @@ read_is_pointed_byte_zero_to_temp_byte_lsw:  // space-complexity is about: 8,400
 def write_temp_byte_to_pointed_byte @ xor_2nd_hex, end < ptr, _original_byte, temp_byte {
     hex.xor HEXES_IN_BYTE, temp_byte, _original_byte
 
-    hex.xor_to_ptr ptr, temp_byte
+    hex.xor_hex_to_ptr ptr, temp_byte
 
     hex.if0 temp_byte + dw, end
   xor_2nd_hex:
     hex.ptr_inc ptr
-    hex.xor_to_ptr ptr, temp_byte + dw
+    hex.xor_hex_to_ptr ptr, temp_byte + dw
     hex.ptr_dec ptr
 
   end:
@@ -98,8 +98,7 @@ write_temp_byte_to_pointed_byte:
     return_inner
 
 
-// Required init macros. Space Complexity: 3,160 (according to the standard values).
-hex.pointers.ptr_init
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
 hex.tables.init_shared
 hex.add.init
 hex.sub.init

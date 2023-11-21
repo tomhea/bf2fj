@@ -1,9 +1,10 @@
 HEXES_IN_BYTE = 2
 BITS_IN_HEX = 4
 DEFAULT_LABEL_PADDINGS = 16
-// standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
 
 stl.startup_and_init_pointers brainfuck_start
+// TODO dont hex.read_byte if ptr haven't changed yet (a flag on a pointer changed?)
 
 
 ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
@@ -27,7 +28,6 @@ def return_inner < inner_ret_register {
     stl.fret inner_ret_register
 }
 
-_original_byte: hex.vec HEXES_IN_BYTE   // mustn't be touched.
 temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
 
 repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
@@ -37,60 +37,23 @@ PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
 // can be changed, as it's an input to ptr-optimization macros.
 repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
 
-//  Time Complexity: 11w@ + 24@+28
-// Space Complexity about: 12.5w@, which is ~8,400 ops (according to the standard values).
-//    temp_byte = _original_byte = *ptr[:2]
-def read_pointed_byte_to_temp_byte < ptr, _original_byte, temp_byte {
-    hex.zero HEXES_IN_BYTE, _original_byte
-
-    hex.xor_hex_from_ptr _original_byte, ptr       // read 4-lsb
-    hex.ptr_inc ptr
-
-    hex.xor_hex_from_ptr _original_byte + dw, ptr  // read 4-msb
-    hex.ptr_dec ptr
-
-    hex.mov HEXES_IN_BYTE, temp_byte, _original_byte
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
 }
 pad DEFAULT_LABEL_PADDINGS
 read_pointed_byte_to_temp_byte:
     read_pointed_byte_to_temp_byte
     return_inner
 
-//  Time Complexity: 6.6w@ + 4@+6 (on average, based on that if1 will be false on 1/5 of the times).
-// Space Complexity about: 12.5w@, which is ~8,400 ops (according to the standard values).
-//    temp_byte[:1] := 0, only if (*ptr[:2] == 0). otherwise temp_byte[:1] := non-zero.
-def read_is_pointed_byte_zero_to_temp_byte_lsw @ end < ptr, temp_byte {
-    hex.zero temp_byte
-
-    hex.xor_hex_from_ptr temp_byte, ptr     // read 4-lsb
-    hex.if1 temp_byte, end
-
-    hex.ptr_inc ptr
-    hex.xor_hex_from_ptr temp_byte, ptr     // read 4-msb
-    hex.ptr_dec ptr
-
-  end:
-}
-pad DEFAULT_LABEL_PADDINGS
-read_is_pointed_byte_zero_to_temp_byte_lsw:  // space-complexity is about: 8,400 (according to the standard values).
-    read_is_pointed_byte_zero_to_temp_byte_lsw
-    return_inner
-
-//  Time Complexity: w(0.5@+2) + 9@+12   (if msh changed: w(@+4) + 16@+24).
-// Space Complexity about: w(2@+31) + 20@+262, which is ~3,000 ops (according to the standard values).
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
 //    *ptr[:2] ^= (temp_byte ^ _original_byte)
-def write_temp_byte_to_pointed_byte @ xor_2nd_hex, end < ptr, _original_byte, temp_byte {
-    hex.xor HEXES_IN_BYTE, temp_byte, _original_byte
-
-    hex.xor_hex_to_ptr ptr, temp_byte
-
-    hex.if0 temp_byte + dw, end
-  xor_2nd_hex:
-    hex.ptr_inc ptr
-    hex.xor_hex_to_ptr ptr, temp_byte + dw
-    hex.ptr_dec ptr
-
-  end:
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
 }
 pad DEFAULT_LABEL_PADDINGS
 write_temp_byte_to_pointed_byte:
@@ -108,14 +71,14 @@ hex.sub.init
 
 // ---------- Pointer Macros ----------
 
-// Time Complexity: 10@+14  (=224 according to the standard values)
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
 //   Executes the '>' command:  ptr++
 def inc_ptr < inc_ptr {
     call inc_ptr
 }
 pad DEFAULT_LABEL_PADDINGS
 inc_ptr:    // space-complexity is about: 600 (according to the standard values).
-    hex.ptr_add ptr, HEXES_IN_BYTE  // complexity note: hex.add_constant:n_const is 1
+    hex.ptr_inc ptr
     return
 
 
@@ -126,7 +89,7 @@ def dec_ptr < dec_ptr {
 }
 pad DEFAULT_LABEL_PADDINGS
 dec_ptr:    // space-complexity is about: 600 (according to the standard values).
-    hex.ptr_sub ptr, HEXES_IN_BYTE  // complexity note: hex.sub_constant:n_const is 1
+    hex.ptr_dec ptr
     return
 
 
@@ -134,7 +97,7 @@ dec_ptr:    // space-complexity is about: 600 (according to the standard values)
 
 // ---------- Data Macros ----------
 
-// Time Complexity: w(11.5@+2) + 36@+41  (~8600 according to the standard values)
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
 //   Executes the '+' command:  (*ptr)++
 def inc_data < inc_data {
     call inc_data
@@ -147,7 +110,7 @@ inc_data:   // space-complexity is about: 131 (according to the standard values)
     return
 
 
-// Time Complexity: w(11.5@+2) + 36@+41  (~8600 according to the standard values)
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
 //   Executes the '-' command:  (*ptr)--
 def dec_data < dec_data {
     call dec_data
@@ -164,7 +127,7 @@ dec_data:   // space-complexity is about: 131 (according to the standard values)
 
 // ---------- IO Macros ----------
 
-// Time Complexity: 11w@ + 26@+28  (~8000 according to the standard values)
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
 //   Executes the '.' command:  print_byte(*ptr)
 def output < output {
     call output
@@ -176,7 +139,7 @@ output:     // space-complexity is about: 63 (according to the standard values).
     return
 
 
-// Time Complexity: w(12@+4) + 44@+66  (~9200 according to the standard values)
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
 //   Executes the ',' command:  *ptr = input_byte()
 def input < input {
     call input
@@ -193,32 +156,30 @@ input:      // space-complexity is about: 161 (according to the standard values)
 
 // ---------- Looping Macros ----------
 
-// Time Complexity: 6.6w@ + 6@+5  (~4600 according to the standard values)
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
 //   Executes the '[' command:  if (*ptr == 0) goto loop-end
-def loop_start after_loop_end_label < read_is_pointed_byte_zero_to_temp_byte_lsw, temp_byte {
-    call_inner read_is_pointed_byte_zero_to_temp_byte_lsw
-    hex.if0 temp_byte, after_loop_end_label
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
 }
-// Time Complexity: 6.6w@ + 6@+5  (~4600 according to the standard values)
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
 //   Executes the ']' command:  if (*ptr != 0) goto loop-start
-def loop_end after_loop_start_label < read_is_pointed_byte_zero_to_temp_byte_lsw, temp_byte {
-    call_inner read_is_pointed_byte_zero_to_temp_byte_lsw
-    hex.if1 temp_byte, after_loop_start_label
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
 }
 
 
-
-// TODO document the time complexity for the next 4 optimization macros.
 
 // ---------- Pointer Optimization Macros ----------
 
-// Time Complexity: -----
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
 //   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
 def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
     hex.set \
         PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
         repetition_optimization_ptr_offset, \
-        (value * HEXES_IN_BYTE * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
     call add_ptr
 }
 pad DEFAULT_LABEL_PADDINGS
@@ -230,13 +191,13 @@ add_ptr:    // space-complexity is about: 699
     return
 
 
-// Time Complexity: -----
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
 //   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
 def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
     hex.set \
         PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
         repetition_optimization_ptr_offset, \
-        (value * HEXES_IN_BYTE * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
     call sub_ptr
 }
 pad DEFAULT_LABEL_PADDINGS
@@ -253,7 +214,7 @@ sub_ptr:    // space-complexity is about: 711
 // ---------- Data Optimization Macros ----------
 
 
-// Time Complexity: -----
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
 //   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
 def add_data value < repetition_optimization_byte, add_data {
     hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
@@ -267,7 +228,7 @@ add_data:   // space-complexity is about: 313
     return
 
 
-// Time Complexity: -----
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
 //   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
 def set_data value < repetition_optimization_byte, set_data {
     hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
@@ -291,4 +252,4 @@ stl.loop
 
 
 brainfuck_memory:
-reserve dw * HEXES_IN_BYTE * !!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!
+reserve dw * !!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!

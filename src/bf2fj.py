@@ -2,7 +2,6 @@ from pathlib import Path
 
 from flipjump import assemble_and_run_test_output
 
-from definitions import BRAINFUCK_DIR, FLIPJUMP_DIR
 from bf2fj_compiler import Bf2FjCompiler
 
 from flipjump.utils.classes import PrintTimer
@@ -19,12 +18,7 @@ DEBUG_INFO_LENGTH = 1000
 
 
 HELLO_WORLD_DIRECTORY = Path('./brainfuck/hello_world')
-
-# BRAINFUCK_PROGRAM_PATH: Path = BRAINFUCK_DIR / 'hello_world.bf'
-# FLIPJUMP_PROGRAM_PATH: Path = FLIPJUMP_DIR / 'hello_world.fj'
-#
-# FIXED_INPUT: bytes = b''
-# EXPECTED_OUTPUT: bytes = b'Hello World!\n'
+BUBBLE_SORT_DIRECTORY = Path('./brainfuck/brainfuck.org/bsort')
 
 
 def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: bytes, expected_output: bytes) -> None:
@@ -92,7 +86,7 @@ def compile_and_test_single_program(program_directory: Path) -> None:
 
 
 def main() -> None:
-    compile_and_test_single_program(HELLO_WORLD_DIRECTORY)
+    compile_and_test_single_program(BUBBLE_SORT_DIRECTORY)
 
 
 if __name__ == '__main__':

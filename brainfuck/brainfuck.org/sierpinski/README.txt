@@ -1,0 +1,1 @@
+outputs a Sierpiński triangle

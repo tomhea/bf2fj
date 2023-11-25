@@ -4,6 +4,7 @@ DEFAULT_LABEL_PADDINGS = 16
 // NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
 
 stl.startup_and_init_pointers brainfuck_start
+// TODO dont hex.read_byte if ptr haven't changed yet (a flag on a pointer changed?)
 
 
 ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
@@ -245,10 +246,377 @@ set_data:   // space-complexity is about: 173
 
 brainfuck_start:
 
-!!!HERE_THE_COMPILED_BRAINFUCK_OPS_WILL_BE!!!
+// The next code was optimized by bf2fj:
+
+inc_ptr
+input
+loop_start loop_op_349
+loop_op_2:
+loop_start loop_op_113
+loop_op_3:
+add_data 246
+loop_start loop_op_111
+loop_op_14:
+add_ptr 3
+loop_start loop_op_23
+loop_op_18:
+add_ptr 4
+loop_end loop_op_18
+loop_op_23:
+inc_data
+loop_start loop_op_66
+loop_op_25:
+set_data 1
+dec_ptr
+loop_start loop_op_62
+loop_op_31:
+dec_data
+add_ptr 4
+add_data 2
+add_ptr 4
+inc_data
+loop_start loop_op_49
+loop_op_44:
+add_ptr 4
+loop_end loop_op_44
+loop_op_49:
+add_data 2
+loop_start loop_op_61
+loop_op_52:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 5
+loop_end loop_op_52
+loop_op_61:
+loop_end loop_op_31
+loop_op_62:
+sub_ptr 3
+loop_end loop_op_25
+loop_op_66:
+add_data 6
+loop_start loop_op_83
+loop_op_73:
+inc_ptr
+add_data 250
+dec_ptr
+dec_data
+loop_end loop_op_73
+loop_op_83:
+inc_ptr
+add_data 254
+loop_start loop_op_108
+loop_op_87:
+add_ptr 2
+loop_start loop_op_96
+loop_op_90:
+dec_data
+add_ptr 4
+loop_end loop_op_90
+loop_op_96:
+inc_data
+inc_ptr
+inc_data
+loop_start loop_op_105
+loop_op_100:
+sub_ptr 4
+loop_end loop_op_100
+loop_op_105:
+inc_ptr
+dec_data
+loop_end loop_op_87
+loop_op_108:
+input
+dec_ptr
+loop_end loop_op_14
+loop_op_111:
+inc_ptr
+loop_end loop_op_3
+loop_op_113:
+add_ptr 3
+add_data 2
+inc_ptr
+inc_data
+add_ptr 2
+loop_start loop_op_295
+loop_op_123:
+sub_ptr 2
+loop_start loop_op_184
+loop_op_126:
+add_ptr 4
+set_data 9
+dec_ptr
+loop_start loop_op_149
+loop_op_144:
+inc_ptr
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_144
+loop_op_149:
+add_data 9
+inc_ptr
+loop_start loop_op_175
+loop_op_160:
+dec_data
+loop_start loop_op_167
+loop_op_162:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_162
+loop_op_167:
+inc_data
+loop_start loop_op_174
+loop_op_169:
+sub_ptr 4
+loop_end loop_op_169
+loop_op_174:
+loop_end loop_op_160
+loop_op_175:
+dec_ptr
+loop_start loop_op_182
+loop_op_177:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_177
+loop_op_182:
+inc_ptr
+loop_end loop_op_126
+loop_op_184:
+inc_ptr
+loop_start loop_op_250
+loop_op_186:
+inc_ptr
+loop_start loop_op_193
+loop_op_188:
+add_ptr 4
+loop_end loop_op_188
+loop_op_193:
+inc_data
+loop_start loop_op_230
+loop_op_195:
+set_data 0
+dec_ptr
+loop_start loop_op_212
+loop_op_200:
+inc_data
+loop_start loop_op_208
+loop_op_202:
+dec_data
+add_ptr 4
+loop_end loop_op_202
+loop_op_208:
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_200
+loop_op_212:
+inc_ptr
+loop_start loop_op_224
+loop_op_214:
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_223
+loop_op_218:
+sub_ptr 4
+loop_end loop_op_218
+loop_op_223:
+loop_end loop_op_214
+loop_op_224:
+inc_data
+sub_ptr 4
+loop_end loop_op_195
+loop_op_230:
+add_ptr 3
+loop_start loop_op_240
+loop_op_234:
+dec_data
+add_ptr 4
+loop_end loop_op_234
+loop_op_240:
+inc_data
+inc_ptr
+inc_data
+loop_start loop_op_249
+loop_op_244:
+sub_ptr 4
+loop_end loop_op_244
+loop_op_249:
+loop_end loop_op_186
+loop_op_250:
+inc_ptr
+loop_start loop_op_287
+loop_op_252:
+loop_start loop_op_271
+loop_op_253:
+inc_ptr
+inc_data
+add_ptr 2
+loop_start loop_op_269
+loop_op_258:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_258
+loop_op_269:
+inc_ptr
+loop_end loop_op_253
+loop_op_271:
+sub_ptr 4
+set_data 0
+inc_ptr
+loop_start loop_op_286
+loop_op_280:
+dec_data
+sub_ptr 4
+loop_end loop_op_280
+loop_op_286:
+loop_end loop_op_252
+loop_op_287:
+add_ptr 7
+loop_end loop_op_123
+loop_op_295:
+add_ptr 2
+inc_data
+loop_start loop_op_313
+loop_op_299:
+set_data 6
+add_ptr 4
+loop_end loop_op_299
+loop_op_313:
+sub_ptr 4
+loop_start loop_op_346
+loop_op_318:
+loop_start loop_op_331
+loop_op_319:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_319
+loop_op_331:
+dec_ptr
+output
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+loop_end loop_op_318
+loop_op_346:
+dec_ptr
+input
+loop_end loop_op_2
+loop_op_349:
+loop_start loop_op_446
+loop_op_350:
+// The Collatz problem or 3n
+inc_data
+// 1 problem is as follows
+output
+// Take a natural number n
+output
+// If it's even
+input
+// halve it; if odd
+input
+// triple it and add one
+output
+// Repeat the process with
+// the resulting number
+input
+// and continue indefinitely
+output
+// If n is 0
+input
+// the resulting
+// sequence is 0
+input
+// 0
+input
+// 0
+input
+// 0
+output
+output
+output
+// It is conjectured but not proven that for any
+// positive integer n
+input
+// the resulting sequence will end in 1
+input
+// 4
+input
+// 2
+input
+// 1
+output
+output
+output
+// See also http://www
+output
+// research
+output
+// att
+output
+// com/projects/OEIS?Anum=A006577
+// This program takes a series of decimal numbers
+input
+// followed by linefeeds (10)
+output
+// The entire series is terminated by an EOF (0 or "no change")
+output
+// For each number
+// input
+input
+// the program outputs
+input
+// in decimal
+input
+// the number of steps from that number
+// to zero or one
+input
+// when following the rule above
+output
+// It's quite fast; on a Sun
+// machine
+input
+// it took three seconds for a random 640
+dec_data
+// digit number
+output
+// One more note
+output
+// This program was originally written for Tristan Parker's
+// Brainfuck Texas Holdem contest
+input
+// and won by default (it was the only entry);
+// the version I submitted before the contest deadline is at
+// http://www
+output
+// hevanet
+output
+// com/cristofd/brainfuck/oldcollatz
+output
+// b
+// Daniel B Cristofani (cristofdathevanetdotcom)
+// http://www
+output
+// hevanet
+output
+// com/cristofd/brainfuck/
+loop_end loop_op_350
+loop_op_446:
 
 stl.loop
 
 
 brainfuck_memory:
-reserve dw * !!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!
+reserve dw * 30000

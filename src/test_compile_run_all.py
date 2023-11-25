@@ -10,6 +10,7 @@ BRAINFUCK_ORG_PATH = PROGRAMS_PATH / 'brainfuck.org'
 
 PROGRAM_DIRECTORIES = [
     PROGRAMS_PATH / 'hello_world',
+    PROGRAMS_PATH / 'hello_100nops',
     BRAINFUCK_ORG_PATH / 'bsort',
     BRAINFUCK_ORG_PATH / 'collatz',
     BRAINFUCK_ORG_PATH / 'dbf2c',

@@ -252,11 +252,11 @@ brainfuck_start:
 
 loop_start loop_op_13
 loop_op_0:
-// bsort
+// qsort
 output
 // b
 add_data 254
-// bubble sort
+// quicksort
 // (c) 2016 Daniel B
 output
 // Cristofani
@@ -266,123 +266,187 @@ output
 loop_end loop_op_0
 loop_op_13:
 add_ptr 2
+inc_data
+add_ptr 5
 input
-loop_start loop_op_21
-loop_op_17:
+loop_start loop_op_29
+loop_op_23:
+inc_ptr
+inc_data
 add_ptr 2
 input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
-loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
-loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
+loop_end loop_op_23
+loop_op_29:
 inc_ptr
 inc_data
-sub_ptr 2
+loop_start loop_op_183
+loop_op_32:
+add_data 254
+loop_start loop_op_41
+loop_op_35:
 inc_data
-inc_ptr
-dec_data
-loop_end loop_op_36
-loop_op_44:
-add_ptr 2
-loop_start loop_op_65
-loop_op_47:
-inc_ptr
-inc_data
-sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
-dec_data
-inc_ptr
-loop_end loop_op_54
-loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
-dec_ptr
-loop_end loop_op_59
-loop_op_61:
-add_ptr 2
-dec_data
-loop_end loop_op_47
-loop_op_65:
 sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
+dec_data
+loop_end loop_op_35
+loop_op_41:
+dec_ptr
+loop_start loop_op_48
+loop_op_43:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_43
+loop_op_48:
+dec_ptr
+loop_start loop_op_173
+loop_op_50:
+dec_ptr
+loop_start loop_op_88
+loop_op_52:
+dec_data
+inc_ptr
+loop_start loop_op_67
+loop_op_55:
+sub_ptr 3
+inc_data
+add_ptr 4
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_55
+loop_op_67:
+sub_ptr 2
+loop_start loop_op_86
+loop_op_70:
 add_ptr 2
-loop_start loop_op_80
+inc_data
+inc_ptr
+loop_start loop_op_78
 loop_op_75:
-inc_ptr
-inc_data
-dec_ptr
 dec_data
+inc_ptr
 loop_end loop_op_75
-loop_op_80:
-add_ptr 2
-loop_start loop_op_92
-loop_op_83:
-sub_ptr 3
-inc_data
-add_ptr 3
-dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
-add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
+loop_op_78:
+sub_ptr 2
+loop_start loop_op_83
+loop_op_81:
 dec_ptr
+loop_end loop_op_81
+loop_op_83:
+dec_ptr
+dec_data
+loop_end loop_op_70
+loop_op_86:
+inc_ptr
+loop_end loop_op_52
+loop_op_88:
+add_ptr 3
+inc_data
+dec_ptr
+loop_start loop_op_106
+loop_op_94:
+set_data 0
+dec_ptr
+loop_start loop_op_104
+loop_op_99:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_99
+loop_op_104:
+dec_ptr
+loop_end loop_op_94
+loop_op_106:
+inc_ptr
+loop_start loop_op_168
+loop_op_108:
+loop_start loop_op_113
+loop_op_109:
+add_ptr 3
+loop_end loop_op_109
+loop_op_113:
+inc_data
+sub_ptr 3
+dec_data
+dec_ptr
+loop_start loop_op_139
+loop_op_120:
+sub_ptr 2
+loop_start loop_op_127
+loop_op_123:
+sub_ptr 3
+loop_end loop_op_123
+loop_op_127:
+add_ptr 2
 inc_data
 inc_ptr
-dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
+loop_start loop_op_136
+loop_op_132:
+add_ptr 3
+loop_end loop_op_132
+loop_op_136:
 dec_ptr
-loop_end loop_op_33
-loop_op_107:
+dec_data
+loop_end loop_op_120
+loop_op_139:
 sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
+loop_start loop_op_146
+loop_op_142:
+sub_ptr 3
+loop_end loop_op_142
+loop_op_146:
+inc_ptr
+loop_start loop_op_167
+loop_op_148:
 add_ptr 2
+loop_start loop_op_155
+loop_op_151:
+add_ptr 3
+loop_end loop_op_151
+loop_op_155:
+dec_ptr
 inc_data
 sub_ptr 2
+loop_start loop_op_164
+loop_op_160:
+sub_ptr 3
+loop_end loop_op_160
+loop_op_164:
+inc_ptr
 dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
-add_ptr 4
-loop_start loop_op_129
-loop_op_125:
-output
+loop_end loop_op_148
+loop_op_167:
+loop_end loop_op_108
+loop_op_168:
+inc_data
+sub_ptr 3
+loop_end loop_op_50
+loop_op_173:
+inc_data
+loop_start loop_op_180
+loop_op_175:
+dec_data
+add_ptr 3
+loop_end loop_op_175
+loop_op_180:
 add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+loop_end loop_op_32
+loop_op_183:
+add_ptr 2
+loop_start loop_op_191
+loop_op_186:
 output
-loop_end loop_op_130
-loop_op_133:
+add_ptr 3
+loop_end loop_op_186
+loop_op_191:
+loop_start loop_op_195
+loop_op_192:
+// This program sorts input bytes via quicksort
+output
+loop_end loop_op_192
+loop_op_195:
 
 stl.loop
 

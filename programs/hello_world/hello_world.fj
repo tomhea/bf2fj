@@ -1,10 +1,12 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
 HEXES_IN_BYTE = 2
 BITS_IN_HEX = 4
 DEFAULT_LABEL_PADDINGS = 16
 // NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
 
 stl.startup_and_init_pointers brainfuck_start
-// TODO dont hex.read_byte if ptr haven't changed yet (a flag on a pointer changed?)
 
 
 ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.

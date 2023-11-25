@@ -252,11 +252,11 @@ brainfuck_start:
 
 loop_start loop_op_13
 loop_op_0:
-// bsort
+// sierpinski
 output
 // b
 add_data 254
-// bubble sort
+// display Sierpinski triangle
 // (c) 2016 Daniel B
 output
 // Cristofani
@@ -265,124 +265,101 @@ output
 // org/
 loop_end loop_op_0
 loop_op_13:
-add_ptr 2
-input
-loop_start loop_op_21
-loop_op_17:
-add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
+add_data 8
+loop_start loop_op_33
+loop_op_22:
+inc_ptr
+inc_data
+inc_ptr
+add_data 4
 sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
-loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
-loop_op_28:
-add_ptr 4
-loop_start loop_op_107
+dec_data
+loop_end loop_op_22
 loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
 inc_ptr
-inc_data
-sub_ptr 2
-inc_data
-inc_ptr
-dec_data
-loop_end loop_op_36
-loop_op_44:
+add_data 2
 add_ptr 2
-loop_start loop_op_65
-loop_op_47:
-inc_ptr
 inc_data
-sub_ptr 4
-loop_start loop_op_57
+dec_ptr
+loop_start loop_op_54
+loop_op_41:
+dec_data
+loop_start loop_op_50
+loop_op_43:
+add_ptr 2
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_43
+loop_op_50:
+inc_data
+add_ptr 2
+loop_end loop_op_41
 loop_op_54:
-dec_data
 inc_ptr
-loop_end loop_op_54
+inc_data
+loop_start loop_op_127
 loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
-dec_ptr
-loop_end loop_op_59
-loop_op_61:
-add_ptr 2
 dec_data
-loop_end loop_op_47
-loop_op_65:
 sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
-add_ptr 2
+loop_start loop_op_116
+loop_op_62:
+dec_data
+inc_ptr
 loop_start loop_op_80
-loop_op_75:
+loop_op_65:
+set_data 1
 inc_ptr
-inc_data
-dec_ptr
-dec_data
-loop_end loop_op_75
-loop_op_80:
-add_ptr 2
-loop_start loop_op_92
-loop_op_83:
-sub_ptr 3
-inc_data
+add_data 2
 add_ptr 3
 dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
+sub_ptr 2
+loop_end loop_op_65
+loop_op_80:
+dec_ptr
+loop_start loop_op_84
+loop_op_82:
+dec_ptr
+loop_end loop_op_82
+loop_op_84:
+add_ptr 2
+add_data 6
+loop_start loop_op_104
 loop_op_93:
+sub_ptr 2
+add_data 5
 add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
-dec_ptr
+dec_data
+loop_end loop_op_93
+loop_op_104:
 inc_data
+sub_ptr 2
+add_data 2
+output
+set_data 0
+sub_ptr 2
+loop_end loop_op_62
+loop_op_116:
 inc_ptr
-dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
-dec_ptr
-loop_end loop_op_33
-loop_op_107:
-sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
-add_ptr 2
+output
+inc_ptr
 inc_data
-sub_ptr 2
-dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
-add_ptr 4
-loop_start loop_op_129
-loop_op_125:
-output
+loop_start loop_op_124
+loop_op_121:
 add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+loop_end loop_op_121
+loop_op_124:
+inc_ptr
+inc_data
+loop_end loop_op_57
+loop_op_127:
+loop_start loop_op_132
+loop_op_128:
+// Shows an ASCII representation of the Sierpinski triangle
+// (iteration 5)
 output
-loop_end loop_op_130
-loop_op_133:
+loop_end loop_op_128
+loop_op_132:
 
 stl.loop
 

@@ -252,12 +252,12 @@ brainfuck_start:
 
 loop_start loop_op_13
 loop_op_0:
-// bsort
+// factorial2
 output
 // b
 add_data 254
-// bubble sort
-// (c) 2016 Daniel B
+// compute factorials
+// (c) 2019 Daniel B
 output
 // Cristofani
 // http://brainfuck
@@ -265,124 +265,308 @@ output
 // org/
 loop_end loop_op_0
 loop_op_13:
-add_ptr 2
-input
-loop_start loop_op_21
-loop_op_17:
-add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
+add_ptr 4
+add_data 2
+inc_ptr
+inc_data
+loop_start loop_op_342
+loop_op_22:
+loop_start loop_op_329
+loop_op_23:
+inc_ptr
 loop_start loop_op_28
 loop_op_25:
-sub_ptr 2
+add_ptr 2
 loop_end loop_op_25
 loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
+dec_ptr
+loop_start loop_op_34
+loop_op_30:
 inc_ptr
 inc_data
+inc_ptr
+loop_end loop_op_30
+loop_op_34:
 sub_ptr 2
-inc_data
+loop_start loop_op_47
+loop_op_37:
 inc_ptr
 dec_data
-loop_end loop_op_36
-loop_op_44:
 add_ptr 2
-loop_start loop_op_65
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_37
 loop_op_47:
 inc_ptr
 inc_data
-sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
+loop_start loop_op_324
+loop_op_50:
+loop_start loop_op_64
+loop_op_51:
+inc_data
+add_ptr 2
+loop_start loop_op_62
+loop_op_55:
+sub_ptr 2
+inc_data
+add_ptr 2
 dec_data
+loop_end loop_op_55
+loop_op_62:
 inc_ptr
-loop_end loop_op_54
-loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
+loop_end loop_op_51
+loop_op_64:
+inc_data
+loop_start loop_op_72
+loop_op_66:
+dec_data
+sub_ptr 2
+inc_data
 dec_ptr
-loop_end loop_op_59
-loop_op_61:
-add_ptr 2
+loop_end loop_op_66
+loop_op_72:
+inc_ptr
 dec_data
-loop_end loop_op_47
-loop_op_65:
-sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
-add_ptr 2
-loop_start loop_op_80
+loop_start loop_op_266
 loop_op_75:
+dec_data
+loop_start loop_op_85
+loop_op_77:
+dec_ptr
+inc_data
+add_ptr 2
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_77
+loop_op_85:
+add_data 6
+loop_start loop_op_104
+loop_op_92:
+inc_ptr
+add_data 8
+dec_ptr
+dec_data
+loop_end loop_op_92
+loop_op_104:
+inc_data
+inc_ptr
+output
+set_data 0
+sub_ptr 2
+loop_start loop_op_149
+loop_op_113:
+add_ptr 3
+loop_start loop_op_130
+loop_op_117:
+loop_start loop_op_126
+loop_op_118:
+sub_ptr 2
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_118
+loop_op_126:
+add_ptr 3
+loop_end loop_op_117
+loop_op_130:
+sub_ptr 4
+loop_start loop_op_146
+loop_op_135:
+loop_start loop_op_141
+loop_op_136:
 inc_ptr
 inc_data
 dec_ptr
 dec_data
-loop_end loop_op_75
-loop_op_80:
+loop_end loop_op_136
+loop_op_141:
+dec_ptr
+dec_data
+sub_ptr 2
+loop_end loop_op_135
+loop_op_146:
+inc_ptr
+dec_data
+loop_end loop_op_113
+loop_op_149:
+add_ptr 3
+loop_start loop_op_243
+loop_op_153:
+sub_ptr 2
+dec_data
+loop_start loop_op_164
+loop_op_157:
+sub_ptr 2
+inc_data
 add_ptr 2
-loop_start loop_op_92
-loop_op_83:
+dec_data
+loop_end loop_op_157
+loop_op_164:
+dec_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_221
+loop_op_176:
+inc_ptr
+loop_start loop_op_183
+loop_op_178:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+loop_end loop_op_178
+loop_op_183:
+add_ptr 3
+loop_start loop_op_213
+loop_op_187:
+sub_ptr 2
+loop_start loop_op_195
+loop_op_190:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_190
+loop_op_195:
+add_ptr 3
+inc_data
+add_ptr 2
+loop_start loop_op_205
+loop_op_202:
+dec_data
+dec_ptr
+loop_end loop_op_202
+loop_op_205:
+dec_ptr
+loop_start loop_op_209
+loop_op_207:
+inc_ptr
+loop_end loop_op_207
+loop_op_209:
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_187
+loop_op_213:
+sub_ptr 6
+dec_data
+loop_end loop_op_176
+loop_op_221:
+inc_ptr
+set_data 0
+inc_ptr
+inc_data
+add_ptr 2
+loop_start loop_op_239
+loop_op_230:
 sub_ptr 3
 inc_data
 add_ptr 3
 dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
+loop_end loop_op_230
+loop_op_239:
+add_ptr 3
+loop_end loop_op_153
+loop_op_243:
+sub_ptr 3
+inc_data
+loop_start loop_op_258
+loop_op_248:
+dec_data
+loop_start loop_op_254
+loop_op_250:
+inc_data
 add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
+loop_end loop_op_250
+loop_op_254:
+sub_ptr 3
+loop_end loop_op_248
+loop_op_258:
+inc_ptr
+loop_start loop_op_264
+loop_op_260:
+sub_ptr 3
+loop_end loop_op_260
+loop_op_264:
+inc_ptr
+loop_end loop_op_75
+loop_op_266:
+add_ptr 3
+loop_start loop_op_321
+loop_op_270:
 dec_ptr
+loop_start loop_op_276
+loop_op_272:
+add_ptr 3
+loop_end loop_op_272
+loop_op_276:
+sub_ptr 3
+loop_start loop_op_294
+loop_op_280:
+loop_start loop_op_290
+loop_op_281:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_281
+loop_op_290:
+sub_ptr 3
+loop_end loop_op_280
+loop_op_294:
+add_ptr 7
+dec_data
+loop_start loop_op_305
+loop_op_303:
+dec_ptr
+loop_end loop_op_303
+loop_op_305:
+add_ptr 3
+loop_start loop_op_312
+loop_op_309:
+sub_ptr 2
+loop_end loop_op_309
+loop_op_312:
+sub_ptr 2
+loop_start loop_op_319
+loop_op_315:
+inc_ptr
 inc_data
 inc_ptr
-dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
+loop_end loop_op_315
+loop_op_319:
 dec_ptr
-loop_end loop_op_33
-loop_op_107:
+loop_end loop_op_270
+loop_op_321:
 sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
+loop_end loop_op_50
+loop_op_324:
+add_data 2
 add_ptr 2
+loop_end loop_op_23
+loop_op_329:
+sub_ptr 2
+add_data 8
+output
 inc_data
-sub_ptr 2
-dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
-add_ptr 4
-loop_start loop_op_129
-loop_op_125:
+loop_end loop_op_22
+loop_op_342:
+// This program computes the factorials (https://oeis
 output
-add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+// org/A000142)
 output
-loop_end loop_op_130
-loop_op_133:
+// Because this
+// sequence is infinitely long
+input
+// this program doesn't terminate on its own; you will
+// have to kill it
+output
+// This program is much faster than my earlier factorial program
+output
 
 stl.loop
 

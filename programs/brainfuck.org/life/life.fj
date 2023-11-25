@@ -252,12 +252,12 @@ brainfuck_start:
 
 loop_start loop_op_13
 loop_op_0:
-// bsort
+// life
 output
 // b
 add_data 254
-// bubble sort
-// (c) 2016 Daniel B
+// John Horton Conway's Game of Life
+// (c) 2021 Daniel B
 output
 // Cristofani
 // http://brainfuck
@@ -265,124 +265,635 @@ output
 // org/
 loop_end loop_op_0
 loop_op_13:
-add_ptr 2
-input
-loop_start loop_op_21
-loop_op_17:
-add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
-loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
-loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
-inc_ptr
-inc_data
-sub_ptr 2
-inc_data
-inc_ptr
+add_ptr 3
 dec_data
-loop_end loop_op_36
-loop_op_44:
+inc_ptr
+inc_data
+inc_ptr
+add_data 5
+inc_ptr
+// (
+add_data 10
+// )
+loop_start loop_op_78
+loop_op_39:
+loop_start loop_op_49
+loop_op_40:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_40
+loop_op_49:
+inc_ptr
+add_data 5
+inc_ptr
+inc_data
 add_ptr 2
-loop_start loop_op_65
-loop_op_47:
+inc_data
+loop_start loop_op_75
+loop_op_61:
+sub_ptr 2
+inc_data
+add_ptr 5
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_61
+loop_op_75:
+dec_ptr
+dec_data
+loop_end loop_op_39
+loop_op_78:
+add_ptr 4
+loop_start loop_op_150
+loop_op_83:
+loop_start loop_op_96
+loop_op_84:
+add_ptr 3
+inc_data
 inc_ptr
 inc_data
 sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
 dec_data
-inc_ptr
-loop_end loop_op_54
-loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
-dec_ptr
-loop_end loop_op_59
-loop_op_61:
+loop_end loop_op_84
+loop_op_96:
+add_data 3
 add_ptr 2
-dec_data
-loop_end loop_op_47
-loop_op_65:
-sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
-add_ptr 2
-loop_start loop_op_80
-loop_op_75:
-inc_ptr
 inc_data
+loop_start loop_op_116
+loop_op_103:
 dec_ptr
-dec_data
-loop_end loop_op_75
-loop_op_80:
-add_ptr 2
-loop_start loop_op_92
-loop_op_83:
-sub_ptr 3
 inc_data
 add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_103
+loop_op_116:
+add_ptr 2
+loop_start loop_op_147
+loop_op_119:
+inc_ptr
+loop_start loop_op_133
+loop_op_121:
+loop_start loop_op_131
+loop_op_122:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_122
+loop_op_131:
+dec_ptr
+loop_end loop_op_121
+loop_op_133:
+sub_ptr 2
+add_data 2
+inc_ptr
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_119
+loop_op_147:
+dec_ptr
 dec_data
 loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
+loop_op_150:
+add_data 3
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_188
+loop_op_157:
+set_data 0
+dec_ptr
+inc_data
+dec_ptr
+loop_start loop_op_185
+loop_op_164:
+inc_ptr
+add_data 17
+dec_ptr
+dec_data
+loop_end loop_op_164
+loop_op_185:
+dec_ptr
+inc_data
+loop_end loop_op_157
+loop_op_188:
 add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
+loop_start loop_op_731
+loop_op_191:
+loop_start loop_op_214
+loop_op_192:
+add_data 9
+output
+add_data 248
+add_ptr 3
+loop_end loop_op_192
+loop_op_214:
+inc_data
+loop_start loop_op_221
+loop_op_216:
+dec_data
+sub_ptr 3
+loop_end loop_op_216
+loop_op_221:
+add_ptr 3
+loop_start loop_op_243
+loop_op_225:
+add_ptr 2
+input
+add_data 246
+loop_start loop_op_241
+loop_op_239:
+inc_ptr
+loop_end loop_op_239
+loop_op_241:
+dec_ptr
+loop_end loop_op_225
+loop_op_243:
+sub_ptr 2
+loop_start loop_op_357
+loop_op_246:
+sub_ptr 3
+loop_start loop_op_355
+loop_op_250:
+inc_ptr
+add_data 254
+loop_start loop_op_265
+loop_op_254:
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+dec_data
+sub_ptr 2
+dec_data
+loop_end loop_op_254
+loop_op_265:
+dec_ptr
+loop_start loop_op_292
+loop_op_267:
+loop_start loop_op_272
+loop_op_268:
+add_ptr 3
+loop_end loop_op_268
+loop_op_272:
+inc_data
+inc_ptr
+dec_data
+loop_start loop_op_283
+loop_op_276:
+inc_data
+add_ptr 2
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_276
+loop_op_283:
+inc_data
+loop_start loop_op_289
+loop_op_285:
+sub_ptr 3
+loop_end loop_op_285
+loop_op_289:
+dec_ptr
+dec_data
+loop_end loop_op_267
+loop_op_292:
+inc_ptr
+add_data 2
+inc_ptr
+loop_start loop_op_302
+loop_op_297:
 dec_ptr
 inc_data
 inc_ptr
 dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
+loop_end loop_op_297
+loop_op_302:
+inc_ptr
+loop_start loop_op_320
+loop_op_304:
+loop_start loop_op_309
+loop_op_305:
+add_ptr 3
+loop_end loop_op_305
+loop_op_309:
+inc_data
+loop_start loop_op_315
+loop_op_311:
+sub_ptr 3
+loop_end loop_op_311
+loop_op_315:
+add_ptr 3
+dec_data
+loop_end loop_op_304
+loop_op_320:
+inc_data
+loop_start loop_op_327
+loop_op_322:
+dec_data
+add_ptr 3
+loop_end loop_op_322
+loop_op_327:
 dec_ptr
-loop_end loop_op_33
-loop_op_107:
-sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
+dec_data
+loop_start loop_op_334
+loop_op_330:
+add_data 2
+inc_ptr
+loop_end loop_op_330
+loop_op_334:
+inc_ptr
+loop_start loop_op_344
+loop_op_336:
+add_data 250
+dec_ptr
+loop_end loop_op_336
+loop_op_344:
+inc_ptr
+add_data 3
+loop_start loop_op_353
+loop_op_349:
+sub_ptr 3
+loop_end loop_op_349
+loop_op_353:
+inc_ptr
+loop_end loop_op_250
+loop_op_355:
+dec_ptr
+loop_end loop_op_246
+loop_op_357:
+inc_ptr
+loop_start loop_op_728
+loop_op_359:
+dec_data
+loop_start loop_op_368
+loop_op_361:
+inc_data
 add_ptr 2
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_361
+loop_op_368:
+inc_data
+add_ptr 2
+inc_data
+add_ptr 3
+inc_data
+inc_ptr
+loop_start loop_op_382
+loop_op_378:
+sub_ptr 3
+loop_end loop_op_378
+loop_op_382:
+inc_ptr
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_503
+loop_op_388:
+inc_ptr
+loop_start loop_op_428
+loop_op_390:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+add_data 3
+add_ptr 2
+add_data 2
+loop_start loop_op_406
+loop_op_402:
+add_ptr 3
+loop_end loop_op_402
+loop_op_406:
+add_data 3
+sub_ptr 3
+add_data 2
+sub_ptr 3
+add_data 2
+loop_start loop_op_424
+loop_op_420:
+add_ptr 3
+loop_end loop_op_420
+loop_op_424:
+add_ptr 3
+loop_end loop_op_390
+loop_op_428:
+sub_ptr 3
+loop_start loop_op_443
+loop_op_432:
+inc_ptr
+loop_start loop_op_438
+loop_op_434:
+add_ptr 3
+loop_end loop_op_434
+loop_op_438:
+inc_data
+add_ptr 3
+loop_end loop_op_432
+loop_op_443:
+sub_ptr 7
+loop_start loop_op_483
+loop_op_451:
+sub_ptr 2
+add_data 2
+dec_ptr
+inc_data
+loop_start loop_op_464
+loop_op_458:
+dec_data
+sub_ptr 3
+inc_data
+loop_end loop_op_458
+loop_op_464:
+dec_data
+inc_ptr
+add_data 2
+add_ptr 3
+add_data 2
+add_ptr 3
+add_data 2
+sub_ptr 4
+loop_end loop_op_451
+loop_op_483:
+sub_ptr 3
+inc_data
+loop_start loop_op_494
+loop_op_488:
+dec_data
+sub_ptr 3
+inc_data
+loop_end loop_op_488
+loop_op_494:
+inc_data
+inc_ptr
+dec_data
+add_ptr 2
+dec_data
+add_ptr 2
+loop_end loop_op_388
+loop_op_503:
+sub_ptr 2
+inc_data
+sub_ptr 2
+inc_data
+sub_ptr 3
 inc_data
 sub_ptr 2
 dec_data
-loop_end loop_op_110
-loop_op_117:
+loop_start loop_op_524
+loop_op_517:
+inc_data
+dec_ptr
+inc_data
 sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
-add_ptr 4
-loop_start loop_op_129
-loop_op_125:
-output
+dec_data
+loop_end loop_op_517
+loop_op_524:
+inc_data
+dec_ptr
+inc_data
+loop_start loop_op_610
+loop_op_528:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_565
+loop_op_533:
+dec_data
+dec_ptr
+dec_data
+sub_ptr 2
+loop_start loop_op_543
+loop_op_539:
+sub_ptr 3
+loop_end loop_op_539
+loop_op_543:
+inc_ptr
+loop_start loop_op_564
+loop_op_545:
 add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+loop_start loop_op_552
+loop_op_548:
+add_ptr 3
+loop_end loop_op_548
+loop_op_552:
+sub_ptr 2
+inc_data
+dec_ptr
+loop_start loop_op_561
+loop_op_557:
+sub_ptr 3
+loop_end loop_op_557
+loop_op_561:
+inc_ptr
+dec_data
+loop_end loop_op_545
+loop_op_564:
+loop_end loop_op_533
+loop_op_565:
+dec_ptr
+loop_start loop_op_595
+loop_op_567:
+dec_ptr
+loop_start loop_op_588
+loop_op_569:
+dec_ptr
+loop_start loop_op_575
+loop_op_571:
+sub_ptr 3
+loop_end loop_op_571
+loop_op_575:
+inc_ptr
+inc_data
+add_ptr 2
+loop_start loop_op_584
+loop_op_580:
+add_ptr 3
+loop_end loop_op_580
+loop_op_584:
+sub_ptr 2
+dec_data
+loop_end loop_op_569
+loop_op_588:
+dec_ptr
+loop_start loop_op_594
+loop_op_590:
+sub_ptr 3
+loop_end loop_op_590
+loop_op_594:
+loop_end loop_op_567
+loop_op_595:
+add_ptr 3
+dec_data
+add_ptr 3
+loop_start loop_op_607
+loop_op_603:
+add_ptr 3
+loop_end loop_op_603
+loop_op_607:
+inc_data
+inc_ptr
+loop_end loop_op_528
+loop_op_610:
+inc_ptr
+inc_data
+loop_start loop_op_621
+loop_op_613:
+dec_data
+sub_ptr 2
+set_data 0
+dec_ptr
+loop_end loop_op_613
+loop_op_621:
+dec_data
+loop_start loop_op_679
+loop_op_623:
+loop_start loop_op_628
+loop_op_624:
+add_ptr 3
+loop_end loop_op_624
+loop_op_628:
+dec_ptr
+loop_start loop_op_652
+loop_op_630:
+sub_ptr 2
+loop_start loop_op_637
+loop_op_633:
+sub_ptr 3
+loop_end loop_op_633
+loop_op_637:
+add_ptr 5
+inc_data
+inc_ptr
+loop_start loop_op_649
+loop_op_645:
+add_ptr 3
+loop_end loop_op_645
+loop_op_649:
+dec_ptr
+dec_data
+loop_end loop_op_630
+loop_op_652:
+add_ptr 3
+loop_start loop_op_677
+loop_op_656:
+inc_ptr
+loop_start loop_op_662
+loop_op_658:
+add_ptr 3
+loop_end loop_op_658
+loop_op_662:
+sub_ptr 4
+inc_data
+inc_ptr
+loop_start loop_op_673
+loop_op_669:
+sub_ptr 3
+loop_end loop_op_669
+loop_op_673:
+add_ptr 2
+dec_data
+loop_end loop_op_656
+loop_op_677:
+inc_ptr
+loop_end loop_op_623
+loop_op_679:
+sub_ptr 6
+loop_start loop_op_726
+loop_op_686:
+add_data 253
+dec_ptr
+add_data 251
+loop_start loop_op_721
+loop_op_696:
+dec_data
+loop_start loop_op_720
+loop_op_698:
+dec_data
+loop_start loop_op_719
+loop_op_700:
+dec_ptr
+dec_data
+add_ptr 2
+add_data 3
+dec_ptr
+set_data 0
+loop_end loop_op_700
+loop_op_719:
+loop_end loop_op_698
+loop_op_720:
+loop_end loop_op_696
+loop_op_721:
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+loop_end loop_op_686
+loop_op_726:
+inc_ptr
+loop_end loop_op_359
+loop_op_728:
+add_ptr 2
+loop_end loop_op_191
+loop_op_731:
+loop_start loop_op_775
+loop_op_732:
+// This program simulates the Game of Life cellular automaton
 output
-loop_end loop_op_130
-loop_op_133:
+// It duplicates the interface of the classic program at
+// http://www
+output
+// linusakesson
+output
+// net/programming/brainfuck/index
+output
+// php
+input
+// but this program was written from scratch
+output
+// Type e
+output
+// g
+output
+// "be" to toggle the fifth cell in the second row
+input
+// "q" to quit
+input
+// or a bare linefeed to advance one generation
+output
+// Grid wraps toroidally
+output
+// Board size in parentheses in first line (2
+dec_data
+// 166 work)
+output
+// This program is licensed under a Creative Commons Attribution
+dec_data
+// ShareAlike 4
+output
+// 0
+// International License (http://creativecommons
+output
+// org/licenses/by
+dec_data
+// sa/4
+output
+// 0/)
+output
+loop_end loop_op_732
+loop_op_775:
 
 stl.loop
 

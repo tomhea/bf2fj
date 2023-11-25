@@ -250,139 +250,258 @@ brainfuck_start:
 
 // The next code was optimized by bf2fj:
 
-loop_start loop_op_13
-loop_op_0:
-// bsort
-output
-// b
-add_data 254
-// bubble sort
-// (c) 2016 Daniel B
-output
-// Cristofani
-// http://brainfuck
-output
-// org/
-loop_end loop_op_0
-loop_op_13:
-add_ptr 2
-input
-loop_start loop_op_21
-loop_op_17:
-add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
-loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
-loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
 inc_ptr
-inc_data
-sub_ptr 2
-inc_data
-inc_ptr
-dec_data
-loop_end loop_op_36
-loop_op_44:
-add_ptr 2
-loop_start loop_op_65
-loop_op_47:
-inc_ptr
-inc_data
-sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
-dec_data
-inc_ptr
-loop_end loop_op_54
-loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
-dec_ptr
-loop_end loop_op_59
-loop_op_61:
-add_ptr 2
-dec_data
-loop_end loop_op_47
-loop_op_65:
-sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
-add_ptr 2
-loop_start loop_op_80
-loop_op_75:
-inc_ptr
-inc_data
-dec_ptr
-dec_data
-loop_end loop_op_75
-loop_op_80:
-add_ptr 2
-loop_start loop_op_92
-loop_op_83:
-sub_ptr 3
-inc_data
+add_data 10
 add_ptr 3
+inc_data
+inc_ptr
+inc_data
+loop_start loop_op_294
+loop_op_17:
+add_ptr 3
+inc_data
+loop_start loop_op_206
+loop_op_22:
 dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
+loop_start loop_op_199
+loop_op_24:
+sub_ptr 5
+loop_start loop_op_37
+loop_op_30:
+inc_data
+sub_ptr 5
+loop_end loop_op_30
+loop_op_37:
 add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
+loop_start loop_op_155
+loop_op_40:
+set_data 0
+inc_ptr
+loop_start loop_op_53
+loop_op_45:
+sub_ptr 2
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_45
+loop_op_53:
+dec_ptr
+loop_start loop_op_60
+loop_op_55:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_55
+loop_op_60:
+dec_ptr
+loop_start loop_op_141
+loop_op_62:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_140
+loop_op_67:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_139
+loop_op_72:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_138
+loop_op_77:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_137
+loop_op_82:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_136
+loop_op_87:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_135
+loop_op_92:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_134
 loop_op_97:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_133
+loop_op_102:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_132
+loop_op_107:
+inc_ptr
+set_data 0
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_start loop_op_131
+loop_op_126:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_126
+loop_op_131:
+loop_end loop_op_107
+loop_op_132:
+loop_end loop_op_102
+loop_op_133:
+loop_end loop_op_97
+loop_op_134:
+loop_end loop_op_92
+loop_op_135:
+loop_end loop_op_87
+loop_op_136:
+loop_end loop_op_82
+loop_op_137:
+loop_end loop_op_77
+loop_op_138:
+loop_end loop_op_72
+loop_op_139:
+loop_end loop_op_67
+loop_op_140:
+loop_end loop_op_62
+loop_op_141:
+inc_ptr
+loop_start loop_op_148
+loop_op_143:
 dec_ptr
 inc_data
 inc_ptr
 dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
+loop_end loop_op_143
+loop_op_148:
+inc_data
+add_ptr 5
+loop_end loop_op_40
+loop_op_155:
+sub_ptr 5
+loop_start loop_op_167
+loop_op_161:
+sub_ptr 5
+loop_end loop_op_161
+loop_op_167:
+add_ptr 7
+loop_start loop_op_181
+loop_op_175:
+add_ptr 5
+loop_end loop_op_175
+loop_op_181:
+add_data 2
+loop_start loop_op_191
+loop_op_184:
+dec_data
+sub_ptr 5
+loop_end loop_op_184
+loop_op_191:
+add_ptr 6
+dec_data
+loop_end loop_op_24
+loop_op_199:
+inc_data
+add_ptr 5
+loop_end loop_op_22
+loop_op_206:
 dec_ptr
-loop_end loop_op_33
-loop_op_107:
-sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
+loop_start loop_op_214
+loop_op_208:
+inc_ptr
+add_data 2
+dec_ptr
+dec_data
+loop_end loop_op_208
+loop_op_214:
+sub_ptr 4
+loop_start loop_op_231
+loop_op_219:
+dec_ptr
+loop_start loop_op_226
+loop_op_221:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_221
+loop_op_226:
+sub_ptr 4
+loop_end loop_op_219
+loop_op_231:
 add_ptr 2
+loop_start loop_op_263
+loop_op_234:
+dec_data
+inc_ptr
+set_data 6
+loop_start loop_op_258
+loop_op_246:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_246
+loop_op_258:
+add_ptr 4
+loop_end loop_op_234
+loop_op_263:
+sub_ptr 5
+loop_start loop_op_287
+loop_op_269:
+dec_ptr
+loop_start loop_op_279
+loop_op_271:
+inc_ptr
+inc_data
+inc_ptr
 inc_data
 sub_ptr 2
 dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
+loop_end loop_op_271
+loop_op_279:
+inc_ptr
+output
+sub_ptr 5
+loop_end loop_op_269
+loop_op_287:
+inc_ptr
+output
 add_ptr 4
-loop_start loop_op_129
-loop_op_125:
+loop_end loop_op_17
+loop_op_294:
+// This program doesn't terminate; you will have to kill it
 output
-add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+// Daniel B Cristofani (cristofdathevanetdotcom)
+// http://www
 output
-loop_end loop_op_130
-loop_op_133:
+// hevanet
+output
+// com/cristofd/brainfuck/
 
 stl.loop
 

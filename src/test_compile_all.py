@@ -6,12 +6,41 @@ from src.bf2fj import compile_brainfuck_file_to_flipjump_file
 
 
 PROGRAMS_PATH = Path(__file__).parent.parent / "programs"
+BRAINFUCK_ORG_PATH = PROGRAMS_PATH / 'brainfuck.org'
 
 PROGRAM_DIRECTORIES = [
     PROGRAMS_PATH / 'hello_world',
-    PROGRAMS_PATH / 'collatz',
-    # PROGRAMS_PATH / 'bsort',
+    BRAINFUCK_ORG_PATH / 'bsort',
+    BRAINFUCK_ORG_PATH / 'collatz',
+    BRAINFUCK_ORG_PATH / 'dbf2c',
+    BRAINFUCK_ORG_PATH / 'dbfi',
+    BRAINFUCK_ORG_PATH / 'dvorak',
+    BRAINFUCK_ORG_PATH / 'e',
+    BRAINFUCK_ORG_PATH / 'factorial',
+    BRAINFUCK_ORG_PATH / 'factorial2',
+    BRAINFUCK_ORG_PATH / 'fib',
+    BRAINFUCK_ORG_PATH / 'golden',
+    BRAINFUCK_ORG_PATH / 'head',
+    BRAINFUCK_ORG_PATH / 'impeccable',
+    BRAINFUCK_ORG_PATH / 'isort',
+    BRAINFUCK_ORG_PATH / 'jabh',
+    BRAINFUCK_ORG_PATH / 'life',
+    BRAINFUCK_ORG_PATH / 'numwarp',
+    BRAINFUCK_ORG_PATH / 'qsort',
+    BRAINFUCK_ORG_PATH / 'random',
+    BRAINFUCK_ORG_PATH / 'README.md',
+    BRAINFUCK_ORG_PATH / 'rot13',
+    BRAINFUCK_ORG_PATH / 'short',
+    BRAINFUCK_ORG_PATH / 'sierpinski',
+    BRAINFUCK_ORG_PATH / 'squares',
+    BRAINFUCK_ORG_PATH / 'squares2',
+    BRAINFUCK_ORG_PATH / 'thuemorse',
+    BRAINFUCK_ORG_PATH / 'tictactoe',
+    BRAINFUCK_ORG_PATH / 'utm',
+    BRAINFUCK_ORG_PATH / 'wc',
+    BRAINFUCK_ORG_PATH / 'xmastree',
 ]
+
 
 DEFAULT_FJM_WIDTH = 32
 DEBUG_INFO_LENGTH = 1000

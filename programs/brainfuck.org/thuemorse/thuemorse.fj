@@ -250,139 +250,73 @@ brainfuck_start:
 
 // The next code was optimized by bf2fj:
 
-loop_start loop_op_13
-loop_op_0:
-// bsort
-output
-// b
-add_data 254
-// bubble sort
-// (c) 2016 Daniel B
-output
-// Cristofani
-// http://brainfuck
-output
-// org/
-loop_end loop_op_0
-loop_op_13:
 add_ptr 2
-input
-loop_start loop_op_21
-loop_op_17:
-add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
+add_data 6
+loop_start loop_op_20
+loop_op_8:
+inc_ptr
+add_data 8
+dec_ptr
+dec_data
+loop_end loop_op_8
+loop_op_20:
+inc_data
+loop_start loop_op_55
+loop_op_22:
+loop_start loop_op_48
+loop_op_23:
+inc_ptr
+output
 loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
+loop_op_26:
+inc_ptr
+loop_end loop_op_26
 loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
-inc_ptr
 inc_data
 sub_ptr 2
-inc_data
-inc_ptr
-dec_data
-loop_end loop_op_36
-loop_op_44:
-add_ptr 2
-loop_start loop_op_65
-loop_op_47:
-inc_ptr
-inc_data
-sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
+loop_start loop_op_39
+loop_op_32:
 dec_data
 inc_ptr
-loop_end loop_op_54
-loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
-dec_ptr
-loop_end loop_op_59
-loop_op_61:
-add_ptr 2
 dec_data
-loop_end loop_op_47
-loop_op_65:
 sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
-add_ptr 2
-loop_start loop_op_80
-loop_op_75:
+loop_end loop_op_32
+loop_op_39:
+inc_ptr
+loop_start loop_op_46
+loop_op_41:
 inc_ptr
 inc_data
-dec_ptr
-dec_data
-loop_end loop_op_75
-loop_op_80:
-add_ptr 2
-loop_start loop_op_92
-loop_op_83:
-sub_ptr 3
-inc_data
-add_ptr 3
-dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
-add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
-dec_ptr
-inc_data
+sub_ptr 2
+loop_end loop_op_41
+loop_op_46:
 inc_ptr
-dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
+loop_end loop_op_23
+loop_op_48:
+inc_ptr
+add_data 2
 dec_ptr
-loop_end loop_op_33
-loop_op_107:
-sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
-add_ptr 2
-inc_data
-sub_ptr 2
+add_data 2
+loop_end loop_op_22
+loop_op_55:
+// Thue
 dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
-add_ptr 4
-loop_start loop_op_129
-loop_op_125:
+// Morse sequence (http://www
 output
-add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+// research
 output
-loop_end loop_op_130
-loop_op_133:
+// att
+output
+// com/projects/OEIS?Anum=A010060)
+output
+// Takes O(n) time and O(lg n) space (which are optimal); does not terminate
+output
+// Daniel B Cristofani (cristofdathevanetdotcom)
+// http://www
+output
+// hevanet
+output
+// com/cristofd/brainfuck/
 
 stl.loop
 

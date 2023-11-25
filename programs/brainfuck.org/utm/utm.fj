@@ -1,0 +1,3421 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+loop_start loop_op_2492
+loop_op_0:
+// A universal Turing machine from Yurii Rogozhin's article "Small universal
+// Turing machines"
+input
+// in Theoretical Computer Science
+input
+// 168(2):215
+dec_data
+// 240
+input
+// 20 November
+// 1996
+output
+// Thus
+input
+// a very direct proof that brainfuck is Turing
+dec_data
+// complete
+output
+// For i/o
+// formats and so on
+input
+// read below; for fuller detail
+input
+// dig up the article
+output
+// If you just want a quick and complete test case
+input
+// the input b1b1bbb1c1c11111d
+// should produce the output 1c11111
+output
+// Daniel B Cristofani (cristofdathevanetdotcom)
+// http://www
+output
+// hevanet
+output
+// com/cristofd/brainfuck/
+// This Turing machine achieves Turing
+dec_data
+// completeness not by simulating other
+// Turing machines directly
+input
+// but by simulating a Turing
+dec_data
+// complete class of
+// tag
+dec_data
+// systems (a computational model invented by Emil Post and named after the
+// children's game "tag")
+output
+// A tag
+dec_data
+// system transforms strings over an alphabet A =
+// {a
+loop_start loop_op_56
+loop_op_54:
+// 1
+loop_end loop_op_54
+loop_op_56:
+input
+// a
+loop_start loop_op_61
+loop_op_59:
+// 2
+loop_end loop_op_59
+loop_op_61:
+input
+output
+output
+output
+// a
+loop_start loop_op_69
+loop_op_67:
+// n
+loop_end loop_op_67
+loop_op_69:
+input
+// a
+loop_start loop_op_76
+loop_op_72:
+// n
+inc_data
+// 1
+loop_end loop_op_72
+loop_op_76:
+// } as follows: a positive integer m is chosen
+input
+// and
+// so is a function P that maps each a
+loop_start loop_op_83
+loop_op_81:
+// i
+loop_end loop_op_81
+loop_op_83:
+// for 1
+dec_ptr
+// =i
+dec_ptr
+// =n to a string P(a
+loop_start loop_op_91
+loop_op_89:
+// i
+loop_end loop_op_89
+loop_op_91:
+// ) over
+// the alphabet A
+output
+// Now:
+// 1
+output
+// if the string being transformed has fewer than m elements
+input
+// the whole
+// process stops now
+output
+// 2
+output
+// m elements are removed from the beginning of the string
+// 3
+output
+// call the first element removed a
+loop_start loop_op_111
+loop_op_109:
+// k
+loop_end loop_op_109
+loop_op_111:
+// ; if k=n
+inc_data
+// 1 the whole process stops now
+output
+// 4
+output
+// P(a
+loop_start loop_op_121
+loop_op_119:
+// k
+loop_end loop_op_119
+loop_op_121:
+// ) is appended to the string
+output
+// 5
+output
+// steps 1
+dec_data
+// 5 are repeated
+output
+// The particular class of tag
+dec_data
+// systems this Turing machine simulates is the class
+// where m=2
+input
+// the initial string has length at least 2
+input
+// and all P(a
+loop_start loop_op_140
+loop_op_138:
+// i
+loop_end loop_op_138
+loop_op_140:
+// ) where
+// 1
+dec_ptr
+// =i
+dec_ptr
+// =n are of the form a
+loop_start loop_op_149
+loop_op_147:
+// n
+loop_end loop_op_147
+loop_op_149:
+// a
+loop_start loop_op_153
+loop_op_151:
+// n
+loop_end loop_op_151
+loop_op_153:
+// B
+loop_start loop_op_157
+loop_op_155:
+// i
+loop_end loop_op_155
+loop_op_157:
+// where B
+loop_start loop_op_161
+loop_op_159:
+// i
+loop_end loop_op_159
+loop_op_161:
+// is some string over the
+// alphabet A (B
+loop_start loop_op_166
+loop_op_164:
+// i
+loop_end loop_op_164
+loop_op_166:
+// is the empty string if and only if i=n)
+output
+// The input for this brainfuck program is mildly complex
+input
+// and there is no error
+// checking
+output
+// The complexity comes from the encoding of tag
+dec_data
+// systems in terms of
+// Turing machine tape configurations
+output
+// Note that the set of initial tape
+// configurations that represent tag
+dec_data
+// systems from the above class is a small
+input
+// though Turing
+dec_data
+// complete
+input
+// subset of the set of possible initial tape
+// configurations for this Turing machine; and the following brainfuck program is
+// only designed to accept inputs from that subset
+output
+dec_data
+// The representation of a symbol a
+loop_start loop_op_196
+loop_op_194:
+// i
+loop_end loop_op_194
+loop_op_196:
+// from the alphabet A is a string of 1s
+// which is one element longer than twice the combined length of all P(a
+loop_start loop_op_201
+loop_op_199:
+// j
+loop_end loop_op_199
+loop_op_201:
+// )
+// where 1
+dec_ptr
+// =j
+dec_ptr
+// i
+output
+dec_data
+// a value like P(a
+loop_start loop_op_213
+loop_op_211:
+// i
+loop_end loop_op_211
+loop_op_213:
+// ) = a
+loop_start loop_op_217
+loop_op_215:
+// n
+loop_end loop_op_215
+loop_op_217:
+// a
+loop_start loop_op_221
+loop_op_219:
+// n
+loop_end loop_op_219
+loop_op_221:
+// a
+loop_start loop_op_225
+loop_op_223:
+// w
+loop_end loop_op_223
+loop_op_225:
+// a
+loop_start loop_op_229
+loop_op_227:
+// x
+loop_end loop_op_227
+loop_op_229:
+output
+output
+output
+// a
+loop_start loop_op_236
+loop_op_234:
+// y
+loop_end loop_op_234
+loop_op_236:
+// a
+loop_start loop_op_240
+loop_op_238:
+// z
+loop_end loop_op_238
+loop_op_240:
+// is represented as follows:
+// b 1
+// b 111
+output
+output
+output
+// (as many as required to represent a
+loop_start loop_op_250
+loop_op_248:
+// z
+loop_end loop_op_248
+loop_op_250:
+// as described above) b
+// b 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_259
+loop_op_257:
+// y
+loop_end loop_op_257
+loop_op_259:
+// as described above) b
+output
+output
+output
+// b 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_271
+loop_op_269:
+// x
+loop_end loop_op_269
+loop_op_271:
+// ) b
+// b 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_280
+loop_op_278:
+// w
+loop_end loop_op_278
+loop_op_280:
+// ) b
+// b 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_289
+loop_op_287:
+// n
+loop_end loop_op_287
+loop_op_289:
+// ) b
+// b 111
+output
+output
+output
+// (as many as for a
+loop_start loop_op_298
+loop_op_296:
+// n
+loop_end loop_op_296
+loop_op_298:
+// as described above
+input
+// MINUS the number of 1s that
+// represent a
+loop_start loop_op_305
+loop_op_303:
+// i
+loop_end loop_op_303
+loop_op_305:
+// ; and no final b)
+dec_data
+// The function P is represented by listing all its outputs in the order
+// P(a
+loop_start loop_op_312
+loop_op_310:
+// n
+loop_end loop_op_310
+loop_op_312:
+// )
+input
+// P(a
+loop_start loop_op_320
+loop_op_316:
+// n
+dec_data
+// 1
+loop_end loop_op_316
+loop_op_320:
+// )
+input
+output
+output
+output
+// P(a
+loop_start loop_op_329
+loop_op_327:
+// 2
+loop_end loop_op_327
+loop_op_329:
+// )
+input
+// P(a
+loop_start loop_op_335
+loop_op_333:
+// 1
+loop_end loop_op_333
+loop_op_335:
+// )
+output
+// The representation of P(a
+loop_start loop_op_343
+loop_op_339:
+// n
+inc_data
+// 1
+loop_end loop_op_339
+loop_op_343:
+// )=STOP
+// is done for you by the brainfuck program
+output
+dec_data
+// The initial string a
+loop_start loop_op_351
+loop_op_349:
+// q
+loop_end loop_op_349
+loop_op_351:
+// a
+loop_start loop_op_355
+loop_op_353:
+// r
+loop_end loop_op_353
+loop_op_355:
+output
+output
+output
+// a
+loop_start loop_op_362
+loop_op_360:
+// s
+loop_end loop_op_360
+loop_op_362:
+// a
+loop_start loop_op_366
+loop_op_364:
+// t
+loop_end loop_op_364
+loop_op_366:
+// to be transformed by the tag
+dec_data
+// system is
+// represented as
+// 111
+output
+output
+output
+// (as many as required to represent a
+loop_start loop_op_378
+loop_op_376:
+// q
+loop_end loop_op_376
+loop_op_378:
+// as above) c
+// 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_387
+loop_op_385:
+// r
+loop_end loop_op_385
+loop_op_387:
+// ) c
+output
+output
+output
+// 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_399
+loop_op_397:
+// s
+loop_end loop_op_397
+loop_op_399:
+// ) c
+// 111
+output
+output
+output
+// (to represent a
+loop_start loop_op_408
+loop_op_406:
+// t
+loop_end loop_op_406
+loop_op_408:
+// ; note that there is no final c
+output
+// )
+dec_data
+// The input to this program is a function P as described above
+input
+// then a single
+// b
+input
+// then the initial string to be transformed
+output
+// Run all the 1s
+input
+// bs
+input
+// and cs
+// together in one line with nothing between
+input
+// followed by a linefeed
+input
+// or a period
+// if a linefeed is problematic for your implementation
+output
+dec_data
+// The output format
+input
+// if the program terminates
+input
+// is the same as the input format
+// for the initial string
+input
+// and represents the final state of the transformed
+// string
+input
+// with a final a
+loop_start loop_op_448
+loop_op_444:
+// n
+inc_data
+// 1
+loop_end loop_op_444
+loop_op_448:
+// appended due to a peculiarity of the Turing
+// machine's algorithm
+output
+dec_data
+// An example
+output
+// A tag
+dec_data
+// system over the alphabet A = {a
+loop_start loop_op_460
+loop_op_458:
+// 1
+loop_end loop_op_458
+loop_op_460:
+input
+// a
+loop_start loop_op_465
+loop_op_463:
+// 2
+loop_end loop_op_463
+loop_op_465:
+input
+// a
+loop_start loop_op_470
+loop_op_468:
+// 3
+loop_end loop_op_468
+loop_op_470:
+input
+// a
+loop_start loop_op_475
+loop_op_473:
+// 4
+loop_end loop_op_473
+loop_op_475:
+// }
+input
+// where m = 2 and:
+// P(a
+loop_start loop_op_482
+loop_op_480:
+// 1
+loop_end loop_op_480
+loop_op_482:
+// ) = a
+loop_start loop_op_486
+loop_op_484:
+// 3
+loop_end loop_op_484
+loop_op_486:
+// a
+loop_start loop_op_490
+loop_op_488:
+// 3
+loop_end loop_op_488
+loop_op_490:
+// a
+loop_start loop_op_494
+loop_op_492:
+// 2
+loop_end loop_op_492
+loop_op_494:
+// a
+loop_start loop_op_498
+loop_op_496:
+// 1
+loop_end loop_op_496
+loop_op_498:
+// a
+loop_start loop_op_502
+loop_op_500:
+// 4
+loop_end loop_op_500
+loop_op_502:
+// P(a
+loop_start loop_op_506
+loop_op_504:
+// 2
+loop_end loop_op_504
+loop_op_506:
+// ) = a
+loop_start loop_op_510
+loop_op_508:
+// 3
+loop_end loop_op_508
+loop_op_510:
+// a
+loop_start loop_op_514
+loop_op_512:
+// 3
+loop_end loop_op_512
+loop_op_514:
+// a
+loop_start loop_op_518
+loop_op_516:
+// 1
+loop_end loop_op_516
+loop_op_518:
+// P(a
+loop_start loop_op_522
+loop_op_520:
+// 3
+loop_end loop_op_520
+loop_op_522:
+// ) = a
+loop_start loop_op_526
+loop_op_524:
+// 3
+loop_end loop_op_524
+loop_op_526:
+// a
+loop_start loop_op_530
+loop_op_528:
+// 3
+loop_end loop_op_528
+loop_op_530:
+// P(a
+loop_start loop_op_534
+loop_op_532:
+// 4
+loop_end loop_op_532
+loop_op_534:
+// ) = STOP
+// meets the criteria above; and when applied to the initial string a
+loop_start loop_op_539
+loop_op_537:
+// 2
+loop_end loop_op_537
+loop_op_539:
+// a
+loop_start loop_op_543
+loop_op_541:
+// 1
+loop_end loop_op_541
+loop_op_543:
+// a
+loop_start loop_op_547
+loop_op_545:
+// 1
+loop_end loop_op_545
+loop_op_547:
+// it gives:
+// a
+loop_start loop_op_552
+loop_op_550:
+// 2
+loop_end loop_op_550
+loop_op_552:
+// a
+loop_start loop_op_556
+loop_op_554:
+// 1
+loop_end loop_op_554
+loop_op_556:
+// a
+loop_start loop_op_560
+loop_op_558:
+// 1
+loop_end loop_op_558
+loop_op_560:
+// a
+loop_start loop_op_564
+loop_op_562:
+// 1
+loop_end loop_op_562
+loop_op_564:
+// a
+loop_start loop_op_568
+loop_op_566:
+// 3
+loop_end loop_op_566
+loop_op_568:
+// a
+loop_start loop_op_572
+loop_op_570:
+// 3
+loop_end loop_op_570
+loop_op_572:
+// a
+loop_start loop_op_576
+loop_op_574:
+// 1
+loop_end loop_op_574
+loop_op_576:
+// a
+loop_start loop_op_580
+loop_op_578:
+// 3
+loop_end loop_op_578
+loop_op_580:
+// a
+loop_start loop_op_584
+loop_op_582:
+// 1
+loop_end loop_op_582
+loop_op_584:
+// a
+loop_start loop_op_588
+loop_op_586:
+// 3
+loop_end loop_op_586
+loop_op_588:
+// a
+loop_start loop_op_592
+loop_op_590:
+// 3
+loop_end loop_op_590
+loop_op_592:
+// a
+loop_start loop_op_596
+loop_op_594:
+// 2
+loop_end loop_op_594
+loop_op_596:
+// a
+loop_start loop_op_600
+loop_op_598:
+// 1
+loop_end loop_op_598
+loop_op_600:
+// a
+loop_start loop_op_604
+loop_op_602:
+// 4
+loop_end loop_op_602
+loop_op_604:
+// a
+loop_start loop_op_608
+loop_op_606:
+// 3
+loop_end loop_op_606
+loop_op_608:
+// a
+loop_start loop_op_612
+loop_op_610:
+// 3
+loop_end loop_op_610
+loop_op_612:
+// a
+loop_start loop_op_616
+loop_op_614:
+// 2
+loop_end loop_op_614
+loop_op_616:
+// a
+loop_start loop_op_620
+loop_op_618:
+// 1
+loop_end loop_op_618
+loop_op_620:
+// a
+loop_start loop_op_624
+loop_op_622:
+// 4
+loop_end loop_op_622
+loop_op_624:
+// a
+loop_start loop_op_628
+loop_op_626:
+// 3
+loop_end loop_op_626
+loop_op_628:
+// a
+loop_start loop_op_632
+loop_op_630:
+// 3
+loop_end loop_op_630
+loop_op_632:
+// a
+loop_start loop_op_636
+loop_op_634:
+// 2
+loop_end loop_op_634
+loop_op_636:
+// a
+loop_start loop_op_640
+loop_op_638:
+// 1
+loop_end loop_op_638
+loop_op_640:
+// a
+loop_start loop_op_644
+loop_op_642:
+// 4
+loop_end loop_op_642
+loop_op_644:
+// a
+loop_start loop_op_648
+loop_op_646:
+// 3
+loop_end loop_op_646
+loop_op_648:
+// a
+loop_start loop_op_652
+loop_op_650:
+// 3
+loop_end loop_op_650
+loop_op_652:
+// a
+loop_start loop_op_656
+loop_op_654:
+// 3
+loop_end loop_op_654
+loop_op_656:
+// a
+loop_start loop_op_660
+loop_op_658:
+// 3
+loop_end loop_op_658
+loop_op_660:
+// a
+loop_start loop_op_664
+loop_op_662:
+// 4
+loop_end loop_op_662
+loop_op_664:
+// a
+loop_start loop_op_668
+loop_op_666:
+// 3
+loop_end loop_op_666
+loop_op_668:
+// a
+loop_start loop_op_672
+loop_op_670:
+// 3
+loop_end loop_op_670
+loop_op_672:
+// a
+loop_start loop_op_676
+loop_op_674:
+// 3
+loop_end loop_op_674
+loop_op_676:
+// a
+loop_start loop_op_680
+loop_op_678:
+// 3
+loop_end loop_op_678
+loop_op_680:
+// a
+loop_start loop_op_684
+loop_op_682:
+// 3
+loop_end loop_op_682
+loop_op_684:
+// a
+loop_start loop_op_688
+loop_op_686:
+// 3
+loop_end loop_op_686
+loop_op_688:
+// a
+loop_start loop_op_692
+loop_op_690:
+// 1
+loop_end loop_op_690
+loop_op_692:
+// a
+loop_start loop_op_696
+loop_op_694:
+// 3
+loop_end loop_op_694
+loop_op_696:
+// a
+loop_start loop_op_700
+loop_op_698:
+// 3
+loop_end loop_op_698
+loop_op_700:
+// a
+loop_start loop_op_704
+loop_op_702:
+// 3
+loop_end loop_op_702
+loop_op_704:
+// a
+loop_start loop_op_708
+loop_op_706:
+// 3
+loop_end loop_op_706
+loop_op_708:
+// a
+loop_start loop_op_712
+loop_op_710:
+// 3
+loop_end loop_op_710
+loop_op_712:
+// a
+loop_start loop_op_716
+loop_op_714:
+// 1
+loop_end loop_op_714
+loop_op_716:
+// and then it's done
+output
+// Now
+input
+// the encoding:
+// a
+loop_start loop_op_725
+loop_op_723:
+// 1
+loop_end loop_op_723
+loop_op_725:
+// is 1
+// a
+loop_start loop_op_730
+loop_op_728:
+// 2
+loop_end loop_op_728
+loop_op_730:
+// is 11111111111
+// a
+loop_start loop_op_735
+loop_op_733:
+// 3
+loop_end loop_op_733
+loop_op_735:
+// is 11111111111111111
+// a
+loop_start loop_op_740
+loop_op_738:
+// 4
+loop_end loop_op_738
+loop_op_740:
+// is 111111111111111111111
+// P(a
+loop_start loop_op_745
+loop_op_743:
+// 1
+loop_end loop_op_743
+loop_op_745:
+// ) is b1 b111111111111111111111b b1b b11111111111b b11111111111111111b
+// b1111111111111111
+// P(a
+loop_start loop_op_751
+loop_op_749:
+// 2
+loop_end loop_op_749
+loop_op_751:
+// ) is b1 b1b b11111111111111111b b111111
+// P(a
+loop_start loop_op_756
+loop_op_754:
+// 3
+loop_end loop_op_754
+loop_op_756:
+// ) is b1 b11111111111111111b b
+// the initial string is 11111111111c1c1
+// and so the whole input is
+// b1 b11111111111111111b b
+// b1 b1b b11111111111111111b b111111
+// b1 b111111111111111111111b b1b b11111111111b b11111111111111111b
+// b1111111111111111
+// b
+// 11111111111c1c1
+// which when run together for input to the program becomes
+// b1b11111111111111111bbb1b1bb11111111111111111bb111111b1b111111111111111111111bb1bb11111111111bb11111111111111111bb1111111111111111b11111111111c1c1
+// The output should be
+// 11111111111111111 c
+// 11111111111111111 c
+// 11111111111111111 c
+// 11111111111111111 c
+// 11111111111111111 c
+// 1 c
+// 111111111111111111111
+add_data 254
+// that is
+input
+// 11111111111111111c11111111111111111c11111111111111111c11111111111111111c11111111111111111c1c111111111111111111111
+// For those interested
+input
+// the state table of the Turing machine itself is
+// 10
+dec_ptr
+// L1    201L2    30cR1    40cL2
+// 11
+dec_ptr
+// L1    210R2    311R3    410R4
+// 1b
+inc_ptr
+// R1    2b
+inc_ptr
+// L3    3b
+dec_ptr
+// R4    4bcL2
+// 1
+dec_ptr
+// 0R1    2
+
+// L2    3
+dec_ptr
+// H     4
+dec_ptr
+// 1
+inc_ptr
+// bL1    2
+
+// R2    3
+inc_ptr
+// bR3    4
+
+// R4
+// 1c0R4    2cbR2    3c1R1    4cbR4
+// where the initial state is 1
+input
+// the blank symbol is "0"
+input
+// tape cells are set as
+// per the input but with the termination code P(a
+loop_start loop_op_828
+loop_op_824:
+// n
+inc_data
+// 1
+loop_end loop_op_824
+loop_op_828:
+// )=STOP represented as a
+// "
+dec_ptr
+// b" at the left end
+input
+// and the head is initially at the first "1" in the code
+// for the initial string
+output
+// If and when the machine halts
+input
+// the head is at the
+// leftmost cell
+input
+// a "
+dec_ptr
+// "; the representations of the rules are intact
+input
+// in a form
+// isomorphic to their original form (each "b" replaced with "
+inc_ptr
+// " and each "1"
+// unchanged); they are followed by a series of "1" cells
+input
+// then a "c" (the
+// leftmost one at that time)
+input
+// then the cells representing the final state of the
+// transformed string
+input
+// then a "c" and a sequence of "1" cells representing a
+loop_start loop_op_863
+loop_op_859:
+// n
+inc_data
+// 1
+loop_end loop_op_859
+loop_op_863:
+// as mentioned
+output
+// The minimal test case b1b1bbb1c1c11111 represents the tag
+dec_data
+// system where P(a
+loop_start loop_op_871
+loop_op_869:
+// 1
+loop_end loop_op_869
+loop_op_871:
+// )
+// = a
+loop_start loop_op_876
+loop_op_874:
+// 1
+loop_end loop_op_874
+loop_op_876:
+// a
+loop_start loop_op_880
+loop_op_878:
+// 1
+loop_end loop_op_878
+loop_op_880:
+// and P(a
+loop_start loop_op_884
+loop_op_882:
+// 2
+loop_end loop_op_882
+loop_op_884:
+// ) = STOP
+input
+// applied to the string a
+loop_start loop_op_890
+loop_op_888:
+// 1
+loop_end loop_op_888
+loop_op_890:
+// a
+loop_start loop_op_894
+loop_op_892:
+// 1
+loop_end loop_op_892
+loop_op_894:
+// a
+loop_start loop_op_898
+loop_op_896:
+// 2
+loop_end loop_op_896
+loop_op_898:
+output
+// This runs
+// for 518 steps of the Turing machine
+input
+// exercising all 23 Turing machine
+// instructions
+input
+// before halting with the output string a
+loop_start loop_op_909
+loop_op_907:
+// 1
+loop_end loop_op_907
+loop_op_909:
+output
+// Here is the brainfuck program that implements this Turing machine
+output
+// The basic
+// memory layout is as follows
+output
+// Each Turing machine cell is represented by a brainfuck cell
+input
+// with the symbols
+// "0 1 b
+
+// c" represented by 0
+input
+// 1
+input
+// 2
+input
+// 3
+input
+// 4
+input
+// 5 respectively
+output
+// The brainfuck
+// cells representing the Turing machine cells are laid out contiguously from the
+// beginning of the tape
+input
+// except that the head of the Turing machine is
+// represented by a gap of three brainfuck cells
+input
+// just to the left of the
+// brainfuck cell that represents the current Turing machine cell
+output
+// At the start
+// of each cycle
+input
+// the rightmost of these three cells holds the Turing machine
+// state
+input
+// where states 1
+dec_data
+// 4 are represented by 1
+dec_data
+// 4 and "halt" (here treated as a
+// separate state) is represented by 0
+output
+// The other two cells hold zeroes
+output
+// Now to walk through the code:
+add_data 3
+inc_ptr
+add_data 2
+add_ptr 3
+inc_data
+loop_start loop_op_1545
+loop_op_970:
+// Set up 3 2 0 0 1
+input
+// representing "
+dec_ptr
+// b" and the Turing machine head
+input
+// in the
+// initial state 1; we can put this at the left end of the brainfuck array
+// because the Turing machine will never go left from the "
+dec_ptr
+// "
+output
+// Next
+input
+// start the main input
+dec_data
+// processing loop
+output
+// Each time through this loop
+input
+// we
+// begin at the rightmost tape cell that we have filled so far
+input
+// or at the state
+// cell of the Turing machine head if it is to the right of all tape cells (as it
+// is initially)
+output
+// Each time through
+input
+// we read a character; if it is "1" or "c"
+input
+// we
+// add the appropriate code to the right end of the tape; if it is a "b"
+input
+// we not
+// only add the code to the end of the tape but also move the head to the right
+// of it
+input
+// since the head must follow the rightmost "b" when the Turing machine
+// starts; if the input character is a linefeed or other terminator
+input
+// we add
+// nothing to the tape but position the brainfuck pointer at the zero that
+// follows the last filled tape cell
+input
+// thus ending this loop
+output
+add_ptr 2
+input
+loop_start loop_op_1042
+loop_op_1021:
+inc_ptr
+add_data 5
+dec_ptr
+loop_start loop_op_1036
+loop_op_1029:
+loop_start loop_op_1033
+loop_op_1030:
+dec_data
+inc_ptr
+loop_end loop_op_1030
+loop_op_1033:
+sub_ptr 2
+loop_end loop_op_1029
+loop_op_1036:
+dec_ptr
+loop_start loop_op_1040
+loop_op_1038:
+inc_ptr
+loop_end loop_op_1038
+loop_op_1040:
+inc_ptr
+loop_end loop_op_1021
+loop_op_1042:
+// Read input
+input
+// producing
+output
+output
+output
+// x 0 'i 0
+output
+output
+output
+// where "x" is a nonzero cell and "i" is the input
+output
+// While i is nonzero
+input
+// run this loop:
+dec_data
+// set up
+output
+output
+output
+// x 0 'i 5 0
+output
+output
+output
+dec_data
+// If the input was six or greater
+input
+// the
+loop_start loop_op_1078
+loop_op_1071:
+loop_start loop_op_1075
+loop_op_1072:
+dec_data
+inc_ptr
+loop_end loop_op_1072
+loop_op_1075:
+sub_ptr 2
+loop_end loop_op_1071
+loop_op_1078:
+// part will five times decrement
+// both i and 5; the sixth time
+input
+// it will only decrement i
+input
+// and move to the cell
+// left of i
+input
+// producing
+output
+output
+output
+// x '0 i 0 0
+output
+output
+output
+// following which the code
+dec_ptr
+loop_start loop_op_1099
+loop_op_1097:
+inc_ptr
+loop_end loop_op_1097
+loop_op_1099:
+inc_ptr
+// will restore the pointer to i:
+output
+output
+output
+// x 0 'i 0 0
+output
+output
+output
+// In short
+input
+// while i is at least six
+input
+// the net effect of each iteration of the
+// loop
+loop_start loop_op_1136
+loop_op_1115:
+inc_ptr
+add_data 5
+dec_ptr
+loop_start loop_op_1130
+loop_op_1123:
+loop_start loop_op_1127
+loop_op_1124:
+dec_data
+inc_ptr
+loop_end loop_op_1124
+loop_op_1127:
+sub_ptr 2
+loop_end loop_op_1123
+loop_op_1130:
+dec_ptr
+loop_start loop_op_1134
+loop_op_1132:
+inc_ptr
+loop_end loop_op_1132
+loop_op_1134:
+inc_ptr
+loop_end loop_op_1115
+loop_op_1136:
+// is to reduce i by 6; so repeated iterations will
+// change i to i mod 6; call this j
+output
+// Then the loop will be run once more
+output
+// Now legitimate input characters give the values 1
+input
+// 2
+input
+// 3
+input
+// 4 when reduced mod 6;
+// "1" gives 1
+input
+// "b" gives 2
+input
+// "c" gives 3
+input
+// and linefeed and "
+output
+// " and "d" all give
+// 4
+output
+// On the last run through the loop
+loop_start loop_op_1182
+loop_op_1161:
+inc_ptr
+add_data 5
+dec_ptr
+loop_start loop_op_1176
+loop_op_1169:
+loop_start loop_op_1173
+loop_op_1170:
+dec_data
+inc_ptr
+loop_end loop_op_1170
+loop_op_1173:
+sub_ptr 2
+loop_end loop_op_1169
+loop_op_1176:
+dec_ptr
+loop_start loop_op_1180
+loop_op_1178:
+inc_ptr
+loop_end loop_op_1178
+loop_op_1180:
+inc_ptr
+loop_end loop_op_1161
+loop_op_1182:
+input
+// the
+loop_start loop_op_1192
+loop_op_1185:
+loop_start loop_op_1189
+loop_op_1186:
+dec_data
+inc_ptr
+loop_end loop_op_1186
+loop_op_1189:
+sub_ptr 2
+loop_end loop_op_1185
+loop_op_1192:
+// part
+// will decrement both j and 5 repeatedly until j is zeroed
+input
+// i
+output
+// e
+output
+// it will zero j
+// while reducing 5 by j
+input
+// leaving
+output
+output
+output
+// x 0 '0 r 0
+output
+output
+output
+// where r is 5
+dec_data
+// j
+output
+// The code
+dec_ptr
+loop_start loop_op_1219
+loop_op_1217:
+inc_ptr
+loop_end loop_op_1217
+loop_op_1219:
+inc_ptr
+// leaves this configuration unchanged
+input
+// and the
+// loop exits
+output
+inc_ptr
+dec_data
+loop_start loop_op_1255
+loop_op_1228:
+sub_ptr 2
+add_data 5
+add_ptr 2
+dec_data
+loop_start loop_op_1254
+loop_op_1239:
+sub_ptr 2
+add_data 252
+add_ptr 2
+dec_data
+loop_start loop_op_1252
+loop_op_1249:
+dec_data
+inc_ptr
+loop_end loop_op_1249
+loop_op_1252:
+dec_ptr
+loop_end loop_op_1239
+loop_op_1254:
+loop_end loop_op_1228
+loop_op_1255:
+// If r was 1
+input
+// i mod 6 was 4
+input
+// meaning a terminator
+output
+// So we don't fill any tape
+// cell but leave
+output
+output
+output
+// x 0 0 '0
+output
+output
+output
+// If r was 2
+input
+// i mod 6 was 3
+input
+// meaning "c"
+output
+// So we set up
+output
+output
+output
+// x 5 0 '0
+output
+output
+output
+// If r was 3
+input
+// i mod 6 was 2
+input
+// meaning "b"
+output
+// In this case we set up
+output
+output
+output
+// x 1 0 '0
+output
+output
+output
+// and skip the innermost
+loop_start loop_op_1303
+loop_op_1300:
+dec_data
+inc_ptr
+loop_end loop_op_1300
+loop_op_1303:
+// loop
+input
+// then step left leaving
+output
+output
+output
+// x 1 '0 0
+output
+output
+output
+// (note the pointer position; only in this case is the pointer immediately to
+// the right of a nonzero cell
+output
+// )
+// If r was 4
+input
+// i mod 6 was 1
+input
+// meaning "1"
+output
+// In this case we set up
+output
+output
+output
+// x 1 0 '1 0
+output
+output
+output
+// and enter the inner
+loop_start loop_op_1336
+loop_op_1333:
+dec_data
+inc_ptr
+loop_end loop_op_1333
+loop_op_1336:
+// loop
+input
+// resulting in
+output
+output
+output
+// x 1 0 0 '0
+output
+output
+output
+// after which we step left
+input
+// producing
+output
+output
+output
+// x 1 0 '0
+output
+output
+output
+dec_ptr
+loop_start loop_op_1379
+loop_op_1358:
+dec_ptr
+dec_data
+dec_ptr
+loop_start loop_op_1364
+loop_op_1362:
+dec_ptr
+loop_end loop_op_1362
+loop_op_1364:
+inc_data
+dec_ptr
+inc_data
+loop_start loop_op_1370
+loop_op_1368:
+inc_ptr
+loop_end loop_op_1368
+loop_op_1370:
+sub_ptr 2
+inc_data
+inc_ptr
+dec_data
+add_ptr 3
+loop_end loop_op_1358
+loop_op_1379:
+// Now we step left
+output
+// If and only if i was "b"
+input
+// we will enter this loop which will
+// move the Turing machine head
+output
+// Now the situation
+input
+// including the head which is
+// somewhere off to the left
+input
+// is
+output
+output
+output
+// 2 0 0 1 y
+output
+output
+output
+// y y y y '1 0 0 0
+output
+output
+output
+// where each y is a 1 (since that is the only symbol that occurs between one b
+// and the next b
+input
+// in input strings that represent tag
+dec_data
+// systems)
+output
+// Now we zero one y and scan left:
+output
+output
+output
+// 2 0 '0 1 y
+output
+output
+output
+// y y y 0 1 0 0 0
+output
+output
+output
+// set two more 1's
+input
+// and scan right (these two
+input
+// and the 1 that was formerly the
+// state cell of the head
+input
+// now serve as tape symbols
+input
+// so we label them y);
+output
+output
+output
+// 2 y y y y
+output
+output
+output
+// y y y '0 1 0 0 0
+output
+output
+output
+// next
+input
+// we set up the head at its new position
+input
+// and we set the cell to the left
+// of it to b
+input
+// and move the pointer just right of the 1 which is the state:
+output
+output
+output
+// 2 y y y y
+output
+output
+output
+// y 2 0 0 1 '0 0 0
+output
+output
+output
+// and now we're to the right of the rightmost nonzero cell
+input
+// as we should be
+input
+// so
+// we end the head
+dec_data
+// moving loop
+output
+// (In the degenerate case where we received two b's in a row
+input
+// the process goes:
+output
+output
+output
+// 2 0 0 1 '1 0 0 0
+output
+output
+output
+output
+output
+output
+// 2 0 '0 0 1 0 0 0
+output
+output
+output
+output
+output
+output
+// 2 y y '0 1 0 0 0
+output
+output
+output
+output
+output
+output
+// 2 2 0 0 1 '0 0 0
+output
+output
+output
+// as it should
+output
+// )
+// After either performing or skipping that loop
+input
+// there are four possibilities
+// corresponding to the four possible inputs
+output
+output
+output
+output
+// x x x x 1 '0
+output
+output
+output
+// if the input was a "1"
+output
+output
+output
+// x 2 0 0 1 '0
+output
+output
+output
+// if the input was a "b"
+output
+output
+output
+// x x x x 5 '0
+output
+output
+output
+// if the input was a "c"
+output
+output
+output
+// x x x x 0 '0
+output
+output
+output
+// if the input was a terminator
+output
+dec_ptr
+loop_end loop_op_970
+loop_op_1545:
+dec_ptr
+loop_start loop_op_1549
+loop_op_1547:
+dec_ptr
+loop_end loop_op_1547
+loop_op_1549:
+inc_ptr
+loop_start loop_op_2278
+loop_op_1551:
+// Now we move left and close the loop
+output
+// If the input was anything but a
+// terminator
+input
+// this puts us at the rightmost nonzero cell and we repeat the
+// input
+dec_data
+// processing loop
+output
+// If the input was a terminator
+input
+// this puts us at the zero
+// after the rightmost nonzero cell
+input
+// and the input is already finished; then we
+// scan left to the gap that represents the Turing machine head
+input
+// and position the
+// pointer at the state cell
+output
+// Then we begin the main loop
+input
+// which will be executed
+// once for each step of the Turing machine's operation
+input
+// stopping when the state
+// cell holds 0 (representing the halt state)
+output
+dec_data
+loop_start loop_op_1592
+loop_op_1582:
+inc_ptr
+add_data 6
+dec_ptr
+dec_data
+loop_end loop_op_1582
+loop_op_1592:
+inc_ptr
+loop_start loop_op_1599
+loop_op_1594:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_1594
+loop_op_1599:
+// At the beginning of each iteration of the main processing loop
+input
+// the
+// configuration is
+output
+output
+output
+// w x 0 0 's y z
+output
+output
+output
+// where w
+input
+// x
+input
+// y
+input
+// z are tape cells
+input
+// with y being the current tape cell
+input
+// and s is
+// the state (1
+dec_data
+// 4)
+output
+// First we combine the current state with the current symbol;
+// we add (6*(s
+dec_data
+// 1)) onto y
+input
+// then move the result back into the former location of
+// s
+output
+// Call the combination g; its values range from 0 to 23
+input
+// one for each
+// state
+dec_data
+// symbol combination
+output
+output
+output
+output
+// w x 0 0 '0 g z
+output
+output
+output
+output
+output
+output
+// w x 0 0 g '0 z
+output
+output
+output
+// Now we have to use g to select a new symbol
+input
+// a new state
+input
+// and a direction to
+// move the head
+output
+// We will provisionally move the head right one cell
+input
+// and set a
+// direction flag; if that flag is nonzero
+input
+// we will move the head left two cells
+input
+// resulting in a total movement of one cell to the left
+output
+// That is
+input
+// we want to use
+// g in
+output
+output
+output
+// w x 0 0 g 0 z
+output
+output
+output
+// to construct an appropriate
+output
+output
+output
+// w x y d 0 s z
+output
+output
+output
+// where d is the direction flag
+input
+// s is the new state
+input
+// and y is the new symbol;
+// then if d is nonzero ("move left after all") we want to shift this to produce
+output
+output
+output
+// w 0 0 s x y z
+output
+output
+output
+// The way we use g to pick new values for s
+input
+// y
+input
+// and d is a very general scheme
+// for mathematical functions of one variable
+input
+// and this UTM is one place we need
+// the generality
+output
+// (See my rot13
+output
+// b for a place where I didn't need the
+// generality
+input
+// and used this method anyway
+input
+// leading to comically inconcise but
+// fast code
+output
+// ) The basic idea is like
+inc_ptr
+// set f(0)
+dec_ptr
+loop_start loop_op_1753
+loop_op_1727:
+inc_ptr
+// set f(1)
+dec_ptr
+dec_data
+loop_start loop_op_1752
+loop_op_1732:
+inc_ptr
+// set f(2)
+dec_ptr
+dec_data
+loop_start loop_op_1751
+loop_op_1737:
+inc_ptr
+// set f(3)
+dec_ptr
+dec_data
+loop_start loop_op_1750
+loop_op_1742:
+output
+output
+output
+// &c
+output
+output
+output
+loop_end loop_op_1742
+loop_op_1750:
+loop_end loop_op_1737
+loop_op_1751:
+loop_end loop_op_1732
+loop_op_1752:
+loop_end loop_op_1727
+loop_op_1753:
+// The argument (in this case
+input
+// g) is gradually decremented; if it was (say) five
+input
+// the program will enter the five outermost loops of this nest but will skip the
+// sixth and those inside it
+input
+// since by that point the argument will have been
+// zeroed
+output
+// So we just make sure the output cells have the right values for f(5)
+// at that point
+input
+// by setting them inside the fifth loop but outside the sixth
+output
+// We get the outputs from the state table
+input
+// naturally
+input
+// reading down the columns
+output
+// Recall that "01b
+
+// c" map to 0 1 2 3 4 5
+input
+// and that "d=1" means "left"
+output
+inc_data
+sub_ptr 3
+add_data 3
+inc_ptr
+inc_data
+inc_ptr
+// g
+inc_ptr
+// =0; set s=1
+input
+// y=3
+input
+// d=1
+loop_start loop_op_2186
+loop_op_1799:
+dec_data
+// g
+inc_ptr
+// =1; same values
+output
+// There's some continuity in the table; only changes from one
+// combination to the next will be commented hereafter
+output
+loop_start loop_op_2185
+loop_op_1808:
+sub_ptr 2
+inc_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+// g
+inc_ptr
+// =2; y=4
+input
+// d=0
+loop_start loop_op_2184
+loop_op_1821:
+sub_ptr 2
+set_data 0
+add_ptr 2
+dec_data
+// g
+inc_ptr
+// =3; y=0
+loop_start loop_op_2183
+loop_op_1833:
+sub_ptr 2
+add_data 2
+inc_ptr
+inc_data
+inc_ptr
+dec_data
+// g
+inc_ptr
+// =4; y=2
+input
+// d=1
+loop_start loop_op_2182
+loop_op_1847:
+sub_ptr 2
+add_data 254
+inc_ptr
+dec_data
+add_ptr 2
+add_data 3
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =5; y=0
+input
+// d=0
+input
+// s=4
+loop_start loop_op_2181
+loop_op_1868:
+sub_ptr 2
+inc_data
+inc_ptr
+inc_data
+add_ptr 2
+add_data 254
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =6; y=1
+input
+// d=1
+input
+// s=2
+loop_start loop_op_2180
+loop_op_1887:
+sub_ptr 2
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+// g
+inc_ptr
+// =7; y=0
+input
+// d=0
+loop_start loop_op_2179
+loop_op_1900:
+sub_ptr 2
+add_data 4
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =8; y=4
+input
+// d=1
+input
+// s=3
+loop_start loop_op_2178
+loop_op_1921:
+inc_ptr
+dec_data
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =9; s=2
+loop_start loop_op_2177
+loop_op_1929:
+sub_ptr 2
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+// g
+inc_ptr
+// =10; y=3
+input
+// d=0
+loop_start loop_op_2176
+loop_op_1942:
+sub_ptr 2
+dec_data
+add_ptr 2
+dec_data
+// g
+inc_ptr
+// =11; y=2
+loop_start loop_op_2175
+loop_op_1952:
+sub_ptr 2
+add_data 3
+add_ptr 3
+dec_data
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =12; y=5
+input
+// s=1
+loop_start loop_op_2174
+loop_op_1969:
+sub_ptr 2
+add_data 252
+add_ptr 3
+add_data 2
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =13; y=1
+input
+// s=3
+loop_start loop_op_2173
+loop_op_1988:
+sub_ptr 2
+add_data 2
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =14; y=3
+input
+// s=4
+loop_start loop_op_2172
+loop_op_2004:
+inc_ptr
+set_data 0
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =15; s=0 (this is the halt condition; having it produce d=0 is useful
+input
+// since
+// moving left would take us outside the brainfuck array
+input
+// and the capability of
+// actually not moving the head has been omitted as unnecessary
+input
+// given that we're
+// only going to output the part of the tape that holds the final state of the
+// transformed string
+output
+// )
+loop_start loop_op_2171
+loop_op_2026:
+sub_ptr 2
+dec_data
+add_ptr 3
+add_data 3
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =16; y=2
+input
+// s=3
+loop_start loop_op_2170
+loop_op_2043:
+sub_ptr 2
+dec_data
+add_ptr 3
+add_data 254
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =17; y=1
+input
+// s=1
+loop_start loop_op_2169
+loop_op_2059:
+sub_ptr 2
+add_data 4
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =18; y=5
+input
+// d=1
+input
+// s=2
+loop_start loop_op_2168
+loop_op_2080:
+sub_ptr 2
+set_data 0
+inc_ptr
+dec_data
+add_ptr 2
+add_data 2
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =19; y=0
+input
+// d=0
+input
+// s=4
+loop_start loop_op_2167
+loop_op_2101:
+sub_ptr 2
+add_data 5
+inc_ptr
+inc_data
+add_ptr 2
+add_data 254
+dec_ptr
+dec_data
+// g
+inc_ptr
+// =20; y=5
+input
+// d=1
+input
+// s=2
+loop_start loop_op_2140
+loop_op_2124:
+dec_ptr
+dec_data
+add_ptr 2
+add_data 2
+dec_ptr
+loop_start loop_op_2139
+loop_op_2132:
+sub_ptr 2
+dec_data
+add_ptr 2
+dec_data
+loop_end loop_op_2132
+loop_op_2139:
+loop_end loop_op_2124
+loop_op_2140:
+// Here's a tricky part
+output
+// g==21 is never produced by the Turing machine from
+// correct input
+input
+// so the remaining states to consider are g==22 and g==23
+input
+// which
+// should give (y=3
+input
+// d=0
+input
+// s=4) and (y=2
+input
+// d=0
+input
+// s=4) respectively
+output
+// So we set up
+// d=0
+input
+// s=4 which are common to both
+input
+// then we take the 2 or 3 that remains in g
+// and subtract it from y to produce the right result for y
+output
+loop_end loop_op_2101
+loop_op_2167:
+loop_end loop_op_2080
+loop_op_2168:
+loop_end loop_op_2059
+loop_op_2169:
+loop_end loop_op_2043
+loop_op_2170:
+loop_end loop_op_2026
+loop_op_2171:
+loop_end loop_op_2004
+loop_op_2172:
+loop_end loop_op_1988
+loop_op_2173:
+loop_end loop_op_1969
+loop_op_2174:
+loop_end loop_op_1952
+loop_op_2175:
+loop_end loop_op_1942
+loop_op_2176:
+loop_end loop_op_1929
+loop_op_2177:
+loop_end loop_op_1921
+loop_op_2178:
+loop_end loop_op_1900
+loop_op_2179:
+loop_end loop_op_1887
+loop_op_2180:
+loop_end loop_op_1868
+loop_op_2181:
+loop_end loop_op_1847
+loop_op_2182:
+loop_end loop_op_1833
+loop_op_2183:
+loop_end loop_op_1821
+loop_op_2184:
+loop_end loop_op_1808
+loop_op_2185:
+loop_end loop_op_1799
+loop_op_2186:
+// We arrive here when g has been zeroed
+output
+// Again
+input
+// the layout now is
+output
+output
+output
+// w x y d '0 s z
+output
+output
+output
+// and y
+input
+// d
+input
+// and s have the correct values
+output
+dec_ptr
+loop_start loop_op_2242
+loop_op_2206:
+dec_data
+add_ptr 2
+loop_start loop_op_2217
+loop_op_2210:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_2210
+loop_op_2217:
+sub_ptr 3
+loop_start loop_op_2230
+loop_op_2221:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2221
+loop_op_2230:
+dec_ptr
+loop_start loop_op_2241
+loop_op_2232:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2232
+loop_op_2241:
+loop_end loop_op_2206
+loop_op_2242:
+// If d==1 we do:
+output
+output
+output
+// w x y '0 0 s z
+output
+output
+output
+output
+output
+output
+// w x y s 0 '0 z
+output
+output
+output
+output
+output
+output
+// w x '0 s 0 y z
+output
+output
+output
+output
+output
+output
+// w '0 0 s x y z
+output
+output
+output
+// to move the head left and leave the pointer at the leftmost cell of the head
+input
+// where it would be if d had been 0 also
+output
+add_ptr 2
+loop_end loop_op_1551
+loop_op_2278:
+// Go to the state cell
+input
+// and if it is nonzero (not the halt state) go through the
+// main Turing machine loop again
+output
+inc_ptr
+loop_start loop_op_2297
+loop_op_2285:
+dec_data
+loop_start loop_op_2295
+loop_op_2287:
+add_data 253
+loop_start loop_op_2294
+loop_op_2291:
+dec_data
+dec_ptr
+loop_end loop_op_2291
+loop_op_2294:
+loop_end loop_op_2287
+loop_op_2295:
+inc_ptr
+loop_end loop_op_2285
+loop_op_2297:
+// Now the Turing machine has halted
+output
+// The situation is
+// 4 0 0 '0 x x
+output
+output
+output
+// x x 0 0 0
+output
+output
+output
+// where each x is either 1
+input
+// 4
+input
+// or 5
+input
+// and the leftmost 5 ("c") marks the start of
+// the transformed string
+output
+// So we scan through the tape looking for that 5
+input
+// and
+// incidentally clearing the tape as we go
+output
+// When we find a 1
+input
+// we decrement it
+input
+// skip the loop
+loop_start loop_op_2336
+loop_op_2328:
+add_data 253
+loop_start loop_op_2335
+loop_op_2332:
+dec_data
+dec_ptr
+loop_end loop_op_2332
+loop_op_2335:
+loop_end loop_op_2328
+loop_op_2336:
+input
+// move right
+input
+// and start fresh
+output
+// When we find a 4
+input
+// we
+// decrement it down to 0
+input
+// skip the loop
+loop_start loop_op_2351
+loop_op_2348:
+dec_data
+dec_ptr
+loop_end loop_op_2348
+loop_op_2351:
+input
+// move right
+input
+// and start fresh
+output
+// When
+// we find a 5
+input
+// we decrement it down to 0
+input
+// move left
+input
+// move right to the space the
+// 5 occupied (now 0)
+input
+// and end this loop
+output
+inc_ptr
+loop_start loop_op_2386
+loop_op_2370:
+add_data 3
+loop_start loop_op_2384
+loop_op_2374:
+dec_ptr
+add_data 5
+inc_ptr
+add_data 254
+loop_end loop_op_2374
+loop_op_2384:
+inc_ptr
+loop_end loop_op_2370
+loop_op_2386:
+// Now we want to output the part of the tape that represents the transformed
+// string; the situation is
+output
+output
+output
+// 0 '0 x x x
+output
+output
+output
+// x x x 0 0 0
+output
+output
+output
+// where each x is either 1
+input
+// representing "1"
+input
+// or 5
+input
+// representing "c"
+output
+// To
+// transform each to the right ASCII value we first add 3
+input
+// producing 4 for "1"
+// and 8 for "c"
+input
+// then multiply the resulting value by 5/2 while moving it left;
+// this is safe because we know the value is even
+output
+// We scan through the string
+// this way
+input
+// after which it consists of 10s (for "1") and 20s (for "c")
+input
+// and the
+// whole string has been shifted one cell left
+output
+inc_data
+dec_ptr
+add_data 2
+loop_start loop_op_2441
+loop_op_2429:
+loop_start loop_op_2439
+loop_op_2430:
+inc_ptr
+add_data 5
+dec_ptr
+dec_data
+loop_end loop_op_2430
+loop_op_2439:
+dec_ptr
+loop_end loop_op_2429
+loop_op_2441:
+// Now we set two more cells to make the linefeed
+input
+// producing
+output
+output
+output
+// 0 x x x
+output
+output
+output
+// x x x '2 1 0 0
+output
+output
+output
+// and multiply each cell by five while moving it right
+input
+// producing
+output
+output
+output
+// '0 0 x x x
+output
+output
+output
+// x x x 11 0 0
+output
+output
+output
+// where each x is either 50 (for "1") or 100 (for "c")
+output
+add_ptr 2
+loop_start loop_op_2478
+loop_op_2474:
+dec_data
+output
+inc_ptr
+loop_end loop_op_2474
+loop_op_2478:
+// Now we scan right
+input
+// reducing each cell by one and outputting it; the values are
+// 49 (ASCII for "1")
+input
+// 99 (ASCII for "c")
+input
+// and 10 (ASCII for the final linefeed)
+output
+// After this loop there are no more commands
+input
+// so the program terminates
+output
+loop_end loop_op_0
+loop_op_2492:
+// The entire program again without comments:
+add_data 3
+inc_ptr
+add_data 2
+add_ptr 3
+inc_data
+loop_start loop_op_2584
+loop_op_2504:
+add_ptr 2
+input
+loop_start loop_op_2529
+loop_op_2508:
+inc_ptr
+add_data 5
+dec_ptr
+loop_start loop_op_2523
+loop_op_2516:
+loop_start loop_op_2520
+loop_op_2517:
+dec_data
+inc_ptr
+loop_end loop_op_2517
+loop_op_2520:
+sub_ptr 2
+loop_end loop_op_2516
+loop_op_2523:
+dec_ptr
+loop_start loop_op_2527
+loop_op_2525:
+inc_ptr
+loop_end loop_op_2525
+loop_op_2527:
+inc_ptr
+loop_end loop_op_2508
+loop_op_2529:
+inc_ptr
+dec_data
+loop_start loop_op_2559
+loop_op_2532:
+sub_ptr 2
+add_data 5
+add_ptr 2
+dec_data
+loop_start loop_op_2558
+loop_op_2543:
+sub_ptr 2
+add_data 252
+add_ptr 2
+dec_data
+loop_start loop_op_2556
+loop_op_2553:
+dec_data
+inc_ptr
+loop_end loop_op_2553
+loop_op_2556:
+dec_ptr
+loop_end loop_op_2543
+loop_op_2558:
+loop_end loop_op_2532
+loop_op_2559:
+dec_ptr
+loop_start loop_op_2582
+loop_op_2561:
+dec_ptr
+dec_data
+dec_ptr
+loop_start loop_op_2567
+loop_op_2565:
+dec_ptr
+loop_end loop_op_2565
+loop_op_2567:
+inc_data
+dec_ptr
+inc_data
+loop_start loop_op_2573
+loop_op_2571:
+inc_ptr
+loop_end loop_op_2571
+loop_op_2573:
+sub_ptr 2
+inc_data
+inc_ptr
+dec_data
+add_ptr 3
+loop_end loop_op_2561
+loop_op_2582:
+dec_ptr
+loop_end loop_op_2504
+loop_op_2584:
+dec_ptr
+loop_start loop_op_2588
+loop_op_2586:
+dec_ptr
+loop_end loop_op_2586
+loop_op_2588:
+inc_ptr
+loop_start loop_op_2904
+loop_op_2590:
+dec_data
+loop_start loop_op_2602
+loop_op_2592:
+inc_ptr
+add_data 6
+dec_ptr
+dec_data
+loop_end loop_op_2592
+loop_op_2602:
+inc_ptr
+loop_start loop_op_2609
+loop_op_2604:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_2604
+loop_op_2609:
+inc_data
+sub_ptr 3
+add_data 3
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_2863
+loop_op_2620:
+dec_data
+loop_start loop_op_2862
+loop_op_2622:
+sub_ptr 2
+inc_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+loop_start loop_op_2861
+loop_op_2630:
+sub_ptr 2
+set_data 0
+add_ptr 2
+dec_data
+loop_start loop_op_2860
+loop_op_2639:
+sub_ptr 2
+add_data 2
+inc_ptr
+inc_data
+inc_ptr
+dec_data
+loop_start loop_op_2859
+loop_op_2648:
+sub_ptr 2
+add_data 254
+inc_ptr
+dec_data
+add_ptr 2
+add_data 3
+dec_ptr
+dec_data
+loop_start loop_op_2858
+loop_op_2662:
+sub_ptr 2
+inc_data
+inc_ptr
+inc_data
+add_ptr 2
+add_data 254
+dec_ptr
+dec_data
+loop_start loop_op_2857
+loop_op_2674:
+sub_ptr 2
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+loop_start loop_op_2856
+loop_op_2682:
+sub_ptr 2
+add_data 4
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_2855
+loop_op_2696:
+inc_ptr
+dec_data
+dec_ptr
+dec_data
+loop_start loop_op_2854
+loop_op_2701:
+sub_ptr 2
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+loop_start loop_op_2853
+loop_op_2709:
+sub_ptr 2
+dec_data
+add_ptr 2
+dec_data
+loop_start loop_op_2852
+loop_op_2716:
+sub_ptr 2
+add_data 3
+add_ptr 3
+dec_data
+dec_ptr
+dec_data
+loop_start loop_op_2851
+loop_op_2728:
+sub_ptr 2
+add_data 252
+add_ptr 3
+add_data 2
+dec_ptr
+dec_data
+loop_start loop_op_2850
+loop_op_2742:
+sub_ptr 2
+add_data 2
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_2849
+loop_op_2753:
+inc_ptr
+set_data 0
+dec_ptr
+dec_data
+loop_start loop_op_2848
+loop_op_2760:
+sub_ptr 2
+dec_data
+add_ptr 3
+add_data 3
+dec_ptr
+dec_data
+loop_start loop_op_2847
+loop_op_2772:
+sub_ptr 2
+dec_data
+add_ptr 3
+add_data 254
+dec_ptr
+dec_data
+loop_start loop_op_2846
+loop_op_2783:
+sub_ptr 2
+add_data 4
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_2845
+loop_op_2797:
+sub_ptr 2
+set_data 0
+inc_ptr
+dec_data
+add_ptr 2
+add_data 2
+dec_ptr
+dec_data
+loop_start loop_op_2844
+loop_op_2811:
+sub_ptr 2
+add_data 5
+inc_ptr
+inc_data
+add_ptr 2
+add_data 254
+dec_ptr
+dec_data
+loop_start loop_op_2843
+loop_op_2827:
+dec_ptr
+dec_data
+add_ptr 2
+add_data 2
+dec_ptr
+loop_start loop_op_2842
+loop_op_2835:
+sub_ptr 2
+dec_data
+add_ptr 2
+dec_data
+loop_end loop_op_2835
+loop_op_2842:
+loop_end loop_op_2827
+loop_op_2843:
+loop_end loop_op_2811
+loop_op_2844:
+loop_end loop_op_2797
+loop_op_2845:
+loop_end loop_op_2783
+loop_op_2846:
+loop_end loop_op_2772
+loop_op_2847:
+loop_end loop_op_2760
+loop_op_2848:
+loop_end loop_op_2753
+loop_op_2849:
+loop_end loop_op_2742
+loop_op_2850:
+loop_end loop_op_2728
+loop_op_2851:
+loop_end loop_op_2716
+loop_op_2852:
+loop_end loop_op_2709
+loop_op_2853:
+loop_end loop_op_2701
+loop_op_2854:
+loop_end loop_op_2696
+loop_op_2855:
+loop_end loop_op_2682
+loop_op_2856:
+loop_end loop_op_2674
+loop_op_2857:
+loop_end loop_op_2662
+loop_op_2858:
+loop_end loop_op_2648
+loop_op_2859:
+loop_end loop_op_2639
+loop_op_2860:
+loop_end loop_op_2630
+loop_op_2861:
+loop_end loop_op_2622
+loop_op_2862:
+loop_end loop_op_2620
+loop_op_2863:
+dec_ptr
+loop_start loop_op_2901
+loop_op_2865:
+dec_data
+add_ptr 2
+loop_start loop_op_2876
+loop_op_2869:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_2869
+loop_op_2876:
+sub_ptr 3
+loop_start loop_op_2889
+loop_op_2880:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2880
+loop_op_2889:
+dec_ptr
+loop_start loop_op_2900
+loop_op_2891:
+add_ptr 3
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2891
+loop_op_2900:
+loop_end loop_op_2865
+loop_op_2901:
+add_ptr 2
+loop_end loop_op_2590
+loop_op_2904:
+inc_ptr
+loop_start loop_op_2918
+loop_op_2906:
+dec_data
+loop_start loop_op_2916
+loop_op_2908:
+add_data 253
+loop_start loop_op_2915
+loop_op_2912:
+dec_data
+dec_ptr
+loop_end loop_op_2912
+loop_op_2915:
+loop_end loop_op_2908
+loop_op_2916:
+inc_ptr
+loop_end loop_op_2906
+loop_op_2918:
+inc_ptr
+loop_start loop_op_2936
+loop_op_2920:
+add_data 3
+loop_start loop_op_2934
+loop_op_2924:
+dec_ptr
+add_data 5
+inc_ptr
+add_data 254
+loop_end loop_op_2924
+loop_op_2934:
+inc_ptr
+loop_end loop_op_2920
+loop_op_2936:
+inc_data
+dec_ptr
+add_data 2
+loop_start loop_op_2953
+loop_op_2941:
+loop_start loop_op_2951
+loop_op_2942:
+inc_ptr
+add_data 5
+dec_ptr
+dec_data
+loop_end loop_op_2942
+loop_op_2951:
+dec_ptr
+loop_end loop_op_2941
+loop_op_2953:
+add_ptr 2
+loop_start loop_op_2960
+loop_op_2956:
+dec_data
+output
+inc_ptr
+loop_end loop_op_2956
+loop_op_2960:
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

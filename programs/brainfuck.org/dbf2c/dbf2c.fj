@@ -250,139 +250,674 @@ brainfuck_start:
 
 // The next code was optimized by bf2fj:
 
-loop_start loop_op_13
-loop_op_0:
-// bsort
-output
-// b
-add_data 254
-// bubble sort
-// (c) 2016 Daniel B
-output
-// Cristofani
-// http://brainfuck
-output
-// org/
-loop_end loop_op_0
-loop_op_13:
+add_data 3
+loop_start loop_op_12
+loop_op_3:
+inc_ptr
+add_data 5
+dec_ptr
+dec_data
+loop_end loop_op_3
+loop_op_12:
 add_ptr 2
-input
-loop_start loop_op_21
+inc_data
+dec_ptr
+loop_start loop_op_56
 loop_op_17:
 add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
-loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
-loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
+add_data 4
+inc_ptr
+add_data 2
+inc_ptr
+add_data 5
+inc_ptr
+add_data 5
 inc_ptr
 inc_data
-sub_ptr 2
-inc_data
-inc_ptr
-dec_data
-loop_end loop_op_36
-loop_op_44:
 add_ptr 2
-loop_start loop_op_65
+inc_data
+dec_ptr
+add_data 2
+loop_start loop_op_51
 loop_op_47:
-inc_ptr
-inc_data
-sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
-dec_data
-inc_ptr
-loop_end loop_op_54
-loop_op_57:
-inc_ptr
-loop_start loop_op_61
-loop_op_59:
+add_data 2
 dec_ptr
-loop_end loop_op_59
-loop_op_61:
-add_ptr 2
-dec_data
 loop_end loop_op_47
-loop_op_65:
+loop_op_51:
+inc_ptr
+add_data 253
+loop_end loop_op_17
+loop_op_56:
+inc_ptr
+add_data 4
+output
+add_ptr 3
+output
+add_data 5
+output
+inc_ptr
+add_data 250
+output
+dec_ptr
+add_data 254
+output
+add_data 9
+output
+inc_ptr
+inc_data
+output
+inc_data
+output
+sub_ptr 4
+add_data 253
+output
+loop_start loop_op_110
+loop_op_108:
+inc_ptr
+loop_end loop_op_108
+loop_op_110:
+sub_ptr 2
+output
 sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
-set_data 0
+output
+add_data 249
+output
+inc_ptr
+add_data 4
+output
+dec_ptr
+add_data 5
+output
+inc_data
+output
+inc_ptr
+add_data 251
+output
+inc_ptr
+inc_data
+output
+dec_ptr
+add_data 4
+output
 add_ptr 2
-loop_start loop_op_80
-loop_op_75:
+add_data 2
+output
+inc_ptr
+add_data 251
+output
+sub_ptr 3
+add_data 251
+output
+add_data 5
+output
+add_data 249
+output
+dec_ptr
+add_data 254
+output
+sub_ptr 3
+output
+add_ptr 3
+output
+sub_ptr 2
+inc_data
+output
+inc_ptr
+add_data 250
+output
+dec_data
+output
+output
+add_data 254
+output
+add_data 3
+output
+add_data 251
+dec_ptr
+add_data 2
+output
+dec_ptr
+add_data 254
+loop_start loop_op_243
+loop_op_238:
 inc_ptr
 inc_data
 dec_ptr
 dec_data
-loop_end loop_op_75
-loop_op_80:
+loop_end loop_op_238
+loop_op_243:
+add_ptr 5
+add_data 254
+output
+add_data 254
+output
+dec_ptr
+add_data 4
+output
 add_ptr 2
-loop_start loop_op_92
-loop_op_83:
+dec_data
+output
 sub_ptr 3
+output
+add_ptr 3
+add_data 254
+output
+inc_ptr
+output
+sub_ptr 4
+add_data 251
+output
+inc_ptr
+add_data 252
+output
+add_data 8
+output
+add_data 252
+dec_ptr
+inc_data
+output
+add_data 9
+add_ptr 2
+add_data 254
+output
+inc_data
+output
+add_data 2
+sub_ptr 4
+output
+loop_start loop_op_334
+loop_op_332:
+inc_ptr
+loop_end loop_op_332
+loop_op_334:
+dec_ptr
+output
+add_ptr 2
+input
+loop_start loop_op_820
+loop_op_340:
+add_ptr 2
+add_data 3
+loop_start loop_op_357
+loop_op_346:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_346
+loop_op_357:
+dec_ptr
+loop_start loop_op_375
+loop_op_359:
+dec_ptr
+loop_start loop_op_367
+loop_op_361:
+dec_data
+loop_start loop_op_366
+loop_op_363:
+dec_data
+dec_ptr
+loop_end loop_op_363
+loop_op_366:
+loop_end loop_op_361
+loop_op_367:
+add_ptr 2
+loop_start loop_op_372
+loop_op_370:
+inc_ptr
+loop_end loop_op_370
+loop_op_372:
+dec_ptr
+dec_data
+loop_end loop_op_359
+loop_op_375:
+dec_ptr
+loop_start loop_op_517
+loop_op_377:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_start loop_op_516
+loop_op_386:
+dec_ptr
+add_data 3
+inc_ptr
+dec_data
+loop_start loop_op_515
+loop_op_393:
+dec_ptr
+add_data 254
+inc_ptr
+dec_data
+loop_start loop_op_514
+loop_op_399:
+dec_ptr
+add_data 3
+inc_ptr
+dec_data
+loop_start loop_op_513
+loop_op_406:
+dec_ptr
+add_data 4
+loop_start loop_op_427
+loop_op_412:
+inc_ptr
+loop_start loop_op_418
+loop_op_414:
+dec_data
+add_ptr 2
+loop_end loop_op_414
+loop_op_418:
+dec_ptr
+loop_start loop_op_423
+loop_op_420:
+add_ptr 2
+loop_end loop_op_420
+loop_op_423:
+sub_ptr 2
+dec_data
+loop_end loop_op_412
+loop_op_427:
+inc_ptr
+loop_start loop_op_512
+loop_op_429:
+dec_ptr
+add_data 3
+inc_ptr
+dec_data
+loop_start loop_op_511
+loop_op_436:
+dec_ptr
+add_data 253
+inc_ptr
+dec_data
+loop_start loop_op_510
+loop_op_443:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_start loop_op_509
+loop_op_451:
+dec_ptr
+add_data 3
+loop_start loop_op_480
+loop_op_456:
+inc_ptr
+loop_start loop_op_471
+loop_op_458:
+dec_data
+loop_start loop_op_470
+loop_op_460:
+dec_data
+loop_start loop_op_469
+loop_op_462:
+dec_data
+loop_start loop_op_468
+loop_op_464:
+dec_data
+add_ptr 2
+loop_end loop_op_464
+loop_op_468:
+loop_end loop_op_462
+loop_op_469:
+loop_end loop_op_460
+loop_op_470:
+loop_end loop_op_458
+loop_op_471:
+dec_ptr
+loop_start loop_op_476
+loop_op_473:
+add_ptr 2
+loop_end loop_op_473
+loop_op_476:
+sub_ptr 2
+dec_data
+loop_end loop_op_456
+loop_op_480:
+inc_ptr
+loop_start loop_op_508
+loop_op_482:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_start loop_op_507
+loop_op_487:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_start loop_op_506
+loop_op_492:
+dec_ptr
+add_data 2
+inc_ptr
+dec_data
+loop_start loop_op_505
+loop_op_498:
+dec_ptr
+set_data 0
+inc_ptr
+dec_data
+loop_end loop_op_498
+loop_op_505:
+loop_end loop_op_492
+loop_op_506:
+loop_end loop_op_487
+loop_op_507:
+loop_end loop_op_482
+loop_op_508:
+loop_end loop_op_451
+loop_op_509:
+loop_end loop_op_443
+loop_op_510:
+loop_end loop_op_436
+loop_op_511:
+loop_end loop_op_429
+loop_op_512:
+loop_end loop_op_406
+loop_op_513:
+loop_end loop_op_399
+loop_op_514:
+loop_end loop_op_393
+loop_op_515:
+loop_end loop_op_386
+loop_op_516:
+loop_end loop_op_377
+loop_op_517:
+dec_ptr
+loop_start loop_op_817
+loop_op_519:
+dec_data
+loop_start loop_op_530
+loop_op_521:
+dec_data
+loop_start loop_op_528
+loop_op_523:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_523
+loop_op_528:
+inc_ptr
+loop_end loop_op_521
+loop_op_530:
+dec_ptr
+loop_start loop_op_589
+loop_op_532:
+sub_ptr 4
+output
+inc_ptr
+add_data 3
+output
+inc_data
+output
+add_data 3
+output
+add_data 249
+output
+inc_ptr
+add_data 253
+output
+add_data 2
+output
+dec_ptr
+output
+inc_ptr
+dec_data
+output
+add_data 2
+sub_ptr 4
+output
+loop_start loop_op_579
+loop_op_577:
+inc_ptr
+loop_end loop_op_577
+loop_op_579:
+add_ptr 9
+loop_end loop_op_532
+loop_op_589:
+dec_ptr
+loop_start loop_op_612
+loop_op_591:
+loop_start loop_op_594
+loop_op_592:
+dec_ptr
+loop_end loop_op_592
+loop_op_594:
+inc_ptr
+add_data 2
+output
+add_data 254
+loop_start loop_op_603
+loop_op_601:
+inc_ptr
+loop_end loop_op_601
+loop_op_603:
+add_ptr 8
+loop_end loop_op_591
+loop_op_612:
+dec_ptr
+loop_start loop_op_629
+loop_op_614:
+sub_ptr 2
+add_data 2
+output
+output
+add_data 254
+add_ptr 6
+loop_end loop_op_614
+loop_op_629:
+dec_ptr
+loop_start loop_op_641
+loop_op_631:
+sub_ptr 2
+output
+output
+add_ptr 5
+loop_end loop_op_631
+loop_op_641:
+dec_ptr
+loop_start loop_op_655
+loop_op_643:
+sub_ptr 2
+output
+output
+dec_data
+output
+inc_data
+add_ptr 4
+loop_end loop_op_643
+loop_op_655:
+dec_ptr
+loop_start loop_op_672
+loop_op_657:
+sub_ptr 2
+add_data 2
+output
+output
+add_data 253
+output
 inc_data
 add_ptr 3
-dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
-add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
+loop_end loop_op_657
+loop_op_672:
 dec_ptr
+loop_start loop_op_687
+loop_op_674:
+sub_ptr 3
+output
+add_ptr 2
+output
+add_ptr 5
+loop_end loop_op_674
+loop_op_687:
+dec_ptr
+loop_start loop_op_731
+loop_op_689:
+sub_ptr 4
+add_data 251
+output
+add_data 5
+inc_ptr
+output
+add_data 252
+output
+add_data 3
+output
 inc_data
 inc_ptr
+add_data 253
+output
+sub_ptr 3
 dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
+output
+loop_start loop_op_729
+loop_op_727:
+inc_ptr
+loop_end loop_op_727
+loop_op_729:
+inc_ptr
+loop_end loop_op_689
+loop_op_731:
 dec_ptr
-loop_end loop_op_33
-loop_op_107:
-sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
-add_ptr 2
-inc_data
-sub_ptr 2
+loop_start loop_op_777
+loop_op_733:
+sub_ptr 4
+output
+add_data 251
+output
+inc_ptr
+add_data 4
+output
+dec_ptr
+add_data 2
+output
+add_data 3
+inc_ptr
+add_data 252
+output
+inc_ptr
+add_data 253
+output
+sub_ptr 3
+output
 dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
-add_ptr 4
-loop_start loop_op_129
-loop_op_125:
+loop_start loop_op_776
+loop_op_774:
+inc_ptr
+loop_end loop_op_774
+loop_op_776:
+loop_end loop_op_733
+loop_op_777:
+dec_ptr
+loop_start loop_op_813
+loop_op_779:
+sub_ptr 5
+add_data 252
 output
 add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
 output
-loop_end loop_op_130
-loop_op_133:
+sub_ptr 2
+output
+add_data 5
+output
+add_ptr 3
+inc_data
+output
+add_data 2
+inc_ptr
+output
+add_ptr 2
+loop_end loop_op_779
+loop_op_813:
+dec_ptr
+output
+inc_ptr
+loop_end loop_op_519
+loop_op_817:
+inc_ptr
+input
+loop_end loop_op_340
+loop_op_820:
+sub_ptr 5
+output
+dec_ptr
+inc_data
+output
+inc_ptr
+add_data 4
+output
+dec_ptr
+add_data 252
+output
+add_ptr 2
+add_data 253
+output
+sub_ptr 3
+dec_data
+output
+add_ptr 3
+inc_data
+output
+inc_ptr
+output
+inc_ptr
+output
+loop_start loop_op_864
+loop_op_862:
+dec_ptr
+loop_end loop_op_862
+loop_op_864:
+inc_ptr
+add_data 2
+output
+loop_start loop_op_871
+loop_op_869:
+inc_ptr
+loop_end loop_op_869
+loop_op_871:
+dec_ptr
+output
+inc_ptr
+loop_start loop_op_907
+loop_op_875:
+// Translates brainfuck to C
+output
+// Assumes no
+dec_data
+// change
+dec_data
+// on
+dec_data
+// EOF or EOF
+dec_data
+inc_ptr
+// 0
+output
+// Generated C does no
+dec_data
+// change
+dec_data
+// on
+dec_data
+// EOF
+input
+// and uses unistd
+output
+// h read and write calls
+output
+// Daniel B Cristofani (cristofdathevanetdotcom)
+// http://www
+output
+// hevanet
+output
+// com/cristofd/brainfuck/
+loop_end loop_op_875
+loop_op_907:
 
 stl.loop
 

@@ -252,12 +252,12 @@ brainfuck_start:
 
 loop_start loop_op_13
 loop_op_0:
-// bsort
+// golden
 output
 // b
 add_data 254
-// bubble sort
-// (c) 2016 Daniel B
+// compute golden ratio
+// (c) 2019 Daniel B
 output
 // Cristofani
 // http://brainfuck
@@ -265,124 +265,250 @@ output
 // org/
 loop_end loop_op_0
 loop_op_13:
-add_ptr 2
-input
-loop_start loop_op_21
-loop_op_17:
-add_ptr 2
-input
-loop_end loop_op_17
-loop_op_21:
-sub_ptr 2
-loop_start loop_op_120
-loop_op_24:
-loop_start loop_op_28
-loop_op_25:
-sub_ptr 2
-loop_end loop_op_25
-loop_op_28:
-add_ptr 4
-loop_start loop_op_107
-loop_op_33:
-sub_ptr 2
-loop_start loop_op_44
-loop_op_36:
+inc_data
+add_ptr 7
+add_data 2
 inc_ptr
 inc_data
-sub_ptr 2
-inc_data
-inc_ptr
-dec_data
-loop_end loop_op_36
-loop_op_44:
-add_ptr 2
-loop_start loop_op_65
-loop_op_47:
 inc_ptr
 inc_data
-sub_ptr 4
-loop_start loop_op_57
-loop_op_54:
-dec_data
 inc_ptr
-loop_end loop_op_54
-loop_op_57:
+inc_data
 inc_ptr
-loop_start loop_op_61
-loop_op_59:
+add_data 2
 dec_ptr
-loop_end loop_op_59
-loop_op_61:
+loop_start loop_op_288
+loop_op_34:
+inc_data
+loop_start loop_op_179
+loop_op_36:
+add_data 254
+loop_start loop_op_46
+loop_op_39:
+add_data 2
+add_ptr 2
+add_data 254
+loop_end loop_op_39
+loop_op_46:
+dec_data
+inc_ptr
+add_data 254
+loop_start loop_op_164
+loop_op_51:
+inc_data
+loop_start loop_op_158
+loop_op_53:
+inc_data
+dec_ptr
+inc_data
+loop_start loop_op_62
+loop_op_57:
+dec_data
+sub_ptr 2
+inc_data
+loop_end loop_op_57
+loop_op_62:
+add_data 2
+sub_ptr 2
+loop_start loop_op_94
+loop_op_67:
+dec_data
+loop_start loop_op_90
+loop_op_69:
+dec_data
+inc_ptr
+dec_data
+loop_start loop_op_77
+loop_op_73:
 add_ptr 2
 dec_data
-loop_end loop_op_47
-loop_op_65:
-sub_ptr 3
-loop_start loop_op_93
-loop_op_69:
+loop_end loop_op_73
+loop_op_77:
+add_data 2
+dec_ptr
+loop_start loop_op_84
+loop_op_81:
+sub_ptr 2
+loop_end loop_op_81
+loop_op_84:
+add_data 2
+sub_ptr 2
+dec_data
+loop_end loop_op_69
+loop_op_90:
+inc_data
+sub_ptr 2
+loop_end loop_op_67
+loop_op_94:
+add_ptr 4
+dec_data
+sub_ptr 5
+add_data 2
+dec_ptr
+dec_data
+sub_ptr 2
+add_data 6
+loop_start loop_op_129
+loop_op_117:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_117
+loop_op_129:
+dec_ptr
+output
+add_data 253
+dec_ptr
+loop_start loop_op_149
+loop_op_136:
+dec_data
+inc_ptr
+output
+set_data 5
+inc_ptr
+loop_end loop_op_136
+loop_op_149:
+inc_ptr
+loop_start loop_op_157
+loop_op_151:
 set_data 0
 add_ptr 2
-loop_start loop_op_80
-loop_op_75:
-inc_ptr
+loop_end loop_op_151
+loop_op_157:
+loop_end loop_op_53
+loop_op_158:
+inc_data
+add_ptr 2
+add_data 254
+loop_end loop_op_51
+loop_op_164:
 inc_data
 dec_ptr
-dec_data
-loop_end loop_op_75
-loop_op_80:
-add_ptr 2
-loop_start loop_op_92
-loop_op_83:
-sub_ptr 3
 inc_data
+loop_start loop_op_174
+loop_op_168:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+loop_end loop_op_168
+loop_op_174:
+add_data 2
+add_ptr 2
+loop_end loop_op_36
+loop_op_179:
+sub_ptr 4
+loop_start loop_op_219
+loop_op_184:
+loop_start loop_op_188
+loop_op_185:
+sub_ptr 2
+loop_end loop_op_185
+loop_op_188:
+add_ptr 2
+loop_start loop_op_205
+loop_op_191:
+dec_data
+loop_start loop_op_200
+loop_op_193:
+add_data 3
+sub_ptr 2
+dec_data
+loop_end loop_op_193
+loop_op_200:
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_191
+loop_op_205:
+add_data 2
+loop_start loop_op_211
+loop_op_208:
+sub_ptr 2
+loop_end loop_op_208
+loop_op_211:
+sub_ptr 5
+inc_data
+inc_ptr
+loop_end loop_op_184
+loop_op_219:
+inc_ptr
+loop_start loop_op_280
+loop_op_221:
+dec_data
+add_ptr 2
+loop_start loop_op_279
+loop_op_225:
+loop_start loop_op_277
+loop_op_226:
 add_ptr 3
-dec_data
-loop_end loop_op_83
-loop_op_92:
-loop_end loop_op_69
-loop_op_93:
+loop_start loop_op_233
+loop_op_230:
 add_ptr 2
-loop_start loop_op_105
-loop_op_96:
-loop_start loop_op_102
-loop_op_97:
-dec_ptr
+loop_end loop_op_230
+loop_op_233:
 inc_data
-inc_ptr
+loop_start loop_op_274
+loop_op_235:
 dec_data
-loop_end loop_op_97
-loop_op_102:
-add_ptr 2
-loop_end loop_op_96
-loop_op_105:
-dec_ptr
-loop_end loop_op_33
-loop_op_107:
-sub_ptr 2
-loop_start loop_op_117
-loop_op_110:
+loop_start loop_op_270
+loop_op_237:
+dec_data
 add_ptr 2
 inc_data
-sub_ptr 2
-dec_data
-loop_end loop_op_110
-loop_op_117:
-sub_ptr 2
-loop_end loop_op_24
-loop_op_120:
 add_ptr 4
-loop_start loop_op_129
-loop_op_125:
-output
+dec_data
+loop_start loop_op_263
+loop_op_247:
+dec_data
+loop_start loop_op_258
+loop_op_249:
+add_data 3
+sub_ptr 2
+set_data 0
+loop_end loop_op_249
+loop_op_258:
+inc_data
 add_ptr 2
-loop_end loop_op_125
-loop_op_129:
-loop_start loop_op_133
-loop_op_130:
-// This program sorts the bytes of its input by bubble sort
+dec_data
+loop_end loop_op_247
+loop_op_263:
+add_data 2
+loop_start loop_op_269
+loop_op_266:
+sub_ptr 2
+loop_end loop_op_266
+loop_op_269:
+loop_end loop_op_237
+loop_op_270:
+inc_data
+sub_ptr 2
+loop_end loop_op_235
+loop_op_274:
+dec_ptr
+dec_data
+loop_end loop_op_226
+loop_op_277:
+dec_ptr
+loop_end loop_op_225
+loop_op_279:
+loop_end loop_op_221
+loop_op_280:
+add_ptr 7
+loop_end loop_op_34
+loop_op_288:
+// This program computes the "golden ratio" (https://oeis
 output
-loop_end loop_op_130
-loop_op_133:
+// org/A001622)
+output
+// Because
+// this number is infinitely long
+input
+// this program doesn't terminate on its own;
+// you will have to kill it
+output
 
 stl.loop
 

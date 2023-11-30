@@ -3,48 +3,7 @@ import pytest
 from flipjump import assemble_and_run_test_output
 
 from src.bf2fj import compile_brainfuck_file_to_flipjump_file
-
-
-PROGRAMS_PATH = Path(__file__).parent.parent / "programs"
-BRAINFUCK_ORG_PATH = PROGRAMS_PATH / 'brainfuck.org'
-SIMPLE_PRINTS_PATH = PROGRAMS_PATH / 'simple_prints'
-UMULLER_PATH = PROGRAMS_PATH / 'umueller-brainfuck'
-
-PROGRAM_DIRECTORIES = [
-    SIMPLE_PRINTS_PATH / 'hello_world',
-    SIMPLE_PRINTS_PATH / 'hello_100nops',
-
-    UMULLER_PATH / 'prime',
-
-    BRAINFUCK_ORG_PATH / 'bsort',
-    BRAINFUCK_ORG_PATH / 'collatz',
-    BRAINFUCK_ORG_PATH / 'dbf2c',
-    BRAINFUCK_ORG_PATH / 'dbfi',
-    BRAINFUCK_ORG_PATH / 'dvorak',
-    BRAINFUCK_ORG_PATH / 'e',
-    BRAINFUCK_ORG_PATH / 'factorial',
-    BRAINFUCK_ORG_PATH / 'factorial2',
-    BRAINFUCK_ORG_PATH / 'fib',
-    BRAINFUCK_ORG_PATH / 'golden',
-    BRAINFUCK_ORG_PATH / 'head',
-    BRAINFUCK_ORG_PATH / 'impeccable',
-    BRAINFUCK_ORG_PATH / 'isort',
-    BRAINFUCK_ORG_PATH / 'jabh',
-    BRAINFUCK_ORG_PATH / 'life',
-    BRAINFUCK_ORG_PATH / 'numwarp',
-    BRAINFUCK_ORG_PATH / 'qsort',
-    BRAINFUCK_ORG_PATH / 'random',
-    BRAINFUCK_ORG_PATH / 'rot13',
-    BRAINFUCK_ORG_PATH / 'short',
-    BRAINFUCK_ORG_PATH / 'sierpinski',
-    BRAINFUCK_ORG_PATH / 'squares',
-    BRAINFUCK_ORG_PATH / 'squares2',
-    BRAINFUCK_ORG_PATH / 'thuemorse',
-    BRAINFUCK_ORG_PATH / 'tictactoe',
-    BRAINFUCK_ORG_PATH / 'utm',
-    BRAINFUCK_ORG_PATH / 'wc',
-    BRAINFUCK_ORG_PATH / 'xmastree',
-]
+from tests.test_cases import PROGRAM_DIRECTORIES, PROGRAM_IDS
 
 
 DEFAULT_FJM_WIDTH = 32
@@ -104,6 +63,6 @@ def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: byt
                                  )
 
 
-@pytest.mark.parametrize("program_directory", PROGRAM_DIRECTORIES)
+@pytest.mark.parametrize("program_directory", PROGRAM_DIRECTORIES, ids=PROGRAM_IDS)
 def test_compile_bj__run_fj__verify_output(program_directory: Path):
     compile_and_test_single_program(program_directory)

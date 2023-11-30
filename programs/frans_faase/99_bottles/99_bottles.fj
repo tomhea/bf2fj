@@ -1,0 +1,2111 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+// ##########################
+// ###
+// ### Severely updated version!
+// ### (now says "1 bottle" and
+// ### contains no extra "0" verse)
+// ###
+// ##########################
+// ### 99 Bottles of Beer ###
+// ### coded in Brainfuck ###
+// ### with explanations  ###
+// ##########################
+// #
+// # This Bottles of Beer program
+// # was written by Andrew Paczkowski
+// # Coder Alias: thepacz
+// # three_halves_plus_one@yahoo
+output
+// com
+// #####
+inc_ptr
+// 0 in the zeroth cell
+add_data 7
+inc_ptr
+add_data 10
+loop_start loop_op_48
+loop_op_39:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_end loop_op_39
+loop_op_48:
+// 57 in the first cell or "9"
+add_data 7
+inc_ptr
+add_data 10
+loop_start loop_op_77
+loop_op_68:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_end loop_op_68
+loop_op_77:
+// 57 in second cell or "9"
+add_data 10
+// 10 in third cell
+inc_ptr
+add_data 9
+// 9 in fourth cell
+// ##########################################
+// ### create ASCII chars in higher cells ###
+// ##########################################
+add_ptr 2
+add_data 8
+loop_start loop_op_122
+loop_op_114:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_114
+loop_op_122:
+// " "
+inc_ptr
+add_data 14
+loop_start loop_op_150
+loop_op_139:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_139
+loop_op_150:
+// b
+inc_data
+inc_ptr
+add_data 11
+loop_start loop_op_179
+loop_op_165:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_165
+loop_op_179:
+// o
+add_data 2
+inc_ptr
+add_data 19
+loop_start loop_op_213
+loop_op_203:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_203
+loop_op_213:
+// t
+add_data 2
+inc_ptr
+add_data 19
+loop_start loop_op_247
+loop_op_237:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_237
+loop_op_247:
+// t
+inc_ptr
+add_data 12
+loop_start loop_op_275
+loop_op_262:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_262
+loop_op_275:
+// l
+inc_data
+inc_ptr
+add_data 10
+loop_start loop_op_303
+loop_op_289:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_289
+loop_op_303:
+// e
+inc_data
+inc_ptr
+add_data 19
+loop_start loop_op_336
+loop_op_326:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_326
+loop_op_336:
+// s
+inc_ptr
+add_data 8
+loop_start loop_op_355
+loop_op_347:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_347
+loop_op_355:
+// " "
+inc_data
+inc_ptr
+add_data 11
+loop_start loop_op_384
+loop_op_370:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_370
+loop_op_384:
+// o
+add_data 2
+inc_ptr
+add_data 10
+loop_start loop_op_413
+loop_op_399:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_399
+loop_op_413:
+// f
+inc_ptr
+add_data 8
+loop_start loop_op_432
+loop_op_424:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_424
+loop_op_432:
+// " "
+inc_ptr
+add_data 14
+loop_start loop_op_460
+loop_op_449:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_449
+loop_op_460:
+// b
+inc_data
+inc_ptr
+add_data 10
+loop_start loop_op_488
+loop_op_474:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_474
+loop_op_488:
+// e
+inc_data
+inc_ptr
+add_data 10
+loop_start loop_op_516
+loop_op_502:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_502
+loop_op_516:
+// e
+inc_ptr
+add_data 19
+loop_start loop_op_548
+loop_op_538:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_538
+loop_op_548:
+// r
+inc_ptr
+add_data 8
+loop_start loop_op_567
+loop_op_559:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_559
+loop_op_567:
+// " "
+inc_data
+inc_ptr
+add_data 11
+loop_start loop_op_596
+loop_op_582:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_582
+loop_op_596:
+// o
+inc_ptr
+add_data 11
+loop_start loop_op_624
+loop_op_610:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_610
+loop_op_624:
+// n
+inc_ptr
+add_data 8
+loop_start loop_op_643
+loop_op_635:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_635
+loop_op_643:
+// " "
+add_data 2
+inc_ptr
+add_data 19
+loop_start loop_op_677
+loop_op_667:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_667
+loop_op_677:
+// t
+add_data 4
+inc_ptr
+add_data 10
+loop_start loop_op_708
+loop_op_694:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_694
+loop_op_708:
+// h
+inc_data
+inc_ptr
+add_data 10
+loop_start loop_op_736
+loop_op_722:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_722
+loop_op_736:
+// e
+inc_ptr
+add_data 8
+loop_start loop_op_755
+loop_op_747:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_747
+loop_op_755:
+// " "
+add_data 2
+inc_ptr
+add_data 13
+loop_start loop_op_786
+loop_op_773:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_773
+loop_op_786:
+// w
+inc_data
+inc_ptr
+add_data 12
+loop_start loop_op_814
+loop_op_802:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_802
+loop_op_814:
+// a
+inc_ptr
+add_data 12
+loop_start loop_op_842
+loop_op_829:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_829
+loop_op_842:
+// l
+inc_ptr
+add_data 12
+loop_start loop_op_870
+loop_op_857:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_857
+loop_op_870:
+// l
+inc_ptr
+add_data 5
+loop_start loop_op_884
+loop_op_878:
+dec_ptr
+add_data 2
+inc_ptr
+dec_data
+loop_end loop_op_878
+loop_op_884:
+// LF
+add_data 2
+inc_ptr
+add_data 19
+loop_start loop_op_918
+loop_op_908:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_908
+loop_op_918:
+// t
+inc_data
+inc_ptr
+add_data 12
+loop_start loop_op_946
+loop_op_934:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_934
+loop_op_946:
+// a
+add_data 3
+inc_ptr
+add_data 13
+loop_start loop_op_977
+loop_op_965:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_965
+loop_op_977:
+// k
+inc_data
+inc_ptr
+add_data 10
+loop_start loop_op_1005
+loop_op_991:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_991
+loop_op_1005:
+// e
+inc_ptr
+add_data 8
+loop_start loop_op_1024
+loop_op_1016:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_1016
+loop_op_1024:
+// " "
+inc_data
+inc_ptr
+add_data 11
+loop_start loop_op_1053
+loop_op_1039:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1039
+loop_op_1053:
+// o
+inc_ptr
+add_data 11
+loop_start loop_op_1081
+loop_op_1067:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1067
+loop_op_1081:
+// n
+inc_data
+inc_ptr
+add_data 10
+loop_start loop_op_1109
+loop_op_1095:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1095
+loop_op_1109:
+// e
+inc_ptr
+add_data 8
+loop_start loop_op_1128
+loop_op_1120:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_1120
+loop_op_1128:
+// " "
+inc_ptr
+add_data 10
+loop_start loop_op_1155
+loop_op_1141:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1141
+loop_op_1155:
+// d
+inc_data
+inc_ptr
+add_data 11
+loop_start loop_op_1184
+loop_op_1170:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1170
+loop_op_1184:
+// o
+add_data 2
+inc_ptr
+add_data 13
+loop_start loop_op_1215
+loop_op_1202:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_1202
+loop_op_1215:
+// w
+inc_ptr
+add_data 11
+loop_start loop_op_1243
+loop_op_1229:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1229
+loop_op_1243:
+// n
+inc_ptr
+add_data 8
+loop_start loop_op_1262
+loop_op_1254:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_1254
+loop_op_1262:
+// " "
+inc_data
+inc_ptr
+add_data 12
+loop_start loop_op_1290
+loop_op_1278:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_1278
+loop_op_1290:
+// a
+inc_ptr
+add_data 11
+loop_start loop_op_1318
+loop_op_1304:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1304
+loop_op_1318:
+// n
+inc_ptr
+add_data 10
+loop_start loop_op_1345
+loop_op_1331:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1331
+loop_op_1345:
+// d
+inc_ptr
+add_data 8
+loop_start loop_op_1364
+loop_op_1356:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_1356
+loop_op_1364:
+// " "
+add_data 2
+inc_ptr
+add_data 11
+loop_start loop_op_1394
+loop_op_1380:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1380
+loop_op_1394:
+// p
+inc_data
+inc_ptr
+add_data 12
+loop_start loop_op_1422
+loop_op_1410:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_1410
+loop_op_1422:
+// a
+inc_data
+inc_ptr
+add_data 19
+loop_start loop_op_1455
+loop_op_1445:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_1445
+loop_op_1455:
+// s
+inc_data
+inc_ptr
+add_data 19
+loop_start loop_op_1488
+loop_op_1478:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_1478
+loop_op_1488:
+// s
+inc_ptr
+add_data 8
+loop_start loop_op_1507
+loop_op_1499:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_1499
+loop_op_1507:
+// " "
+inc_data
+inc_ptr
+add_data 13
+loop_start loop_op_1536
+loop_op_1524:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_1524
+loop_op_1536:
+// i
+add_data 2
+inc_ptr
+add_data 19
+loop_start loop_op_1570
+loop_op_1560:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_1560
+loop_op_1570:
+// t
+inc_ptr
+add_data 8
+loop_start loop_op_1589
+loop_op_1581:
+dec_ptr
+add_data 4
+inc_ptr
+dec_data
+loop_end loop_op_1581
+loop_op_1589:
+// " "
+inc_data
+inc_ptr
+add_data 12
+loop_start loop_op_1617
+loop_op_1605:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_1605
+loop_op_1617:
+// a
+inc_ptr
+add_data 19
+loop_start loop_op_1649
+loop_op_1639:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_1639
+loop_op_1649:
+// r
+inc_data
+inc_ptr
+add_data 11
+loop_start loop_op_1678
+loop_op_1664:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1664
+loop_op_1678:
+// o
+inc_ptr
+add_data 13
+loop_start loop_op_1707
+loop_op_1694:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_1694
+loop_op_1707:
+// u
+inc_ptr
+add_data 11
+loop_start loop_op_1735
+loop_op_1721:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1721
+loop_op_1735:
+// n
+inc_ptr
+add_data 10
+loop_start loop_op_1762
+loop_op_1748:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1748
+loop_op_1762:
+// d
+inc_ptr
+add_data 5
+loop_start loop_op_1776
+loop_op_1770:
+dec_ptr
+add_data 2
+inc_ptr
+dec_data
+loop_end loop_op_1770
+loop_op_1776:
+// LF
+add_data 13
+// CR
+loop_start loop_op_1794
+loop_op_1792:
+dec_ptr
+loop_end loop_op_1792
+loop_op_1794:
+add_ptr 4
+// go back to fourth cell
+// #################################
+// ### initiate the display loop ###
+// #################################
+loop_start loop_op_2230
+loop_op_1803:
+// loop
+dec_ptr
+// back to cell 3
+loop_start loop_op_2112
+loop_op_1807:
+// loop
+loop_start loop_op_1811
+loop_op_1809:
+inc_ptr
+loop_end loop_op_1809
+loop_op_1811:
+sub_ptr 2
+// go to last cell and back to LF
+output
+output
+// output 2 newlines
+loop_start loop_op_1820
+loop_op_1818:
+dec_ptr
+loop_end loop_op_1818
+loop_op_1820:
+inc_ptr
+// go to first cell
+// ###################################
+// #### begin display of characters###
+// ###################################
+// #
+// #
+output
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #X X     b o t t l e s   o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l N
+// #
+loop_start loop_op_1897
+loop_op_1895:
+dec_ptr
+loop_end loop_op_1895
+loop_op_1897:
+inc_ptr
+// go to first cell
+// #
+output
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+add_ptr 13
+output
+inc_ptr
+// #X X     b o t t l e s   o f   b e e r             N
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #t a k e   o n e   d o w n   a n d   p a s s
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #i t   a r o u n d N
+// #####
+loop_start loop_op_2026
+loop_op_2024:
+dec_ptr
+loop_end loop_op_2024
+loop_op_2026:
+add_ptr 2
+// go to cell 2
+dec_data
+// subtract 1 from cell 2
+dec_ptr
+// go to cell 1
+// ########################
+// ### display last line ##
+// ########################
+// #
+// #
+output
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #X X     b o t t l e s   o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l
+// #####
+loop_start loop_op_2106
+loop_op_2104:
+dec_ptr
+loop_end loop_op_2104
+loop_op_2106:
+add_ptr 3
+dec_data
+// go to cell 3/subtract 1
+loop_end loop_op_1807
+loop_op_2112:
+// end loop when cell 3 is 0
+add_data 10
+// add 10 to cell 3
+dec_ptr
+add_data 10
+// back to cell 2/add 10
+dec_ptr
+dec_data
+// back to cell 1/subtract 1
+loop_start loop_op_2142
+loop_op_2140:
+inc_ptr
+loop_end loop_op_2140
+loop_op_2142:
+dec_ptr
+output
+// go to last line/carriage return
+loop_start loop_op_2148
+loop_op_2146:
+dec_ptr
+loop_end loop_op_2146
+loop_op_2148:
+inc_ptr
+// go to first line
+// ########################
+// ### correct last line ##
+// ########################
+// #
+// #
+output
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #X X     b o t t l e s   o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l
+// #####
+loop_start loop_op_2223
+loop_op_2221:
+dec_ptr
+loop_end loop_op_2221
+loop_op_2223:
+add_ptr 4
+dec_data
+// go to cell 4/subtract 1
+loop_end loop_op_1803
+loop_op_2230:
+// end loop when cell 4 is 0
+// ##############################################################
+// ### By this point verses 99\10 are displayed but to work   ###
+// ### with the lower numbered verses in a more readable way  ###
+// ### we initiate a new loop for verses 9{CODE} that will not    ###
+// ### use the fourth cell at all                             ###
+// ##############################################################
+inc_data
+// add 1 to cell four (to keep it non\zero)
+dec_ptr
+add_data 254
+// back to cell 3/subtract 2
+loop_start loop_op_2543
+loop_op_2244:
+// loop
+loop_start loop_op_2248
+loop_op_2246:
+inc_ptr
+loop_end loop_op_2246
+loop_op_2248:
+sub_ptr 2
+// go to last cell and back to LF
+output
+output
+// output 2 newlines
+loop_start loop_op_2257
+loop_op_2255:
+dec_ptr
+loop_end loop_op_2255
+loop_op_2257:
+inc_ptr
+// go to first cell
+// ###################################
+// #### begin display of characters###
+// ###################################
+// #
+// #
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// # X     b o t t l e s   o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l N
+// #
+loop_start loop_op_2333
+loop_op_2331:
+dec_ptr
+loop_end loop_op_2331
+loop_op_2333:
+inc_ptr
+// go to first cell
+// #
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+add_ptr 13
+output
+inc_ptr
+// # X     b o t t l e s   o f   b e e r             N
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #t a k e   o n e   d o w n   a n d   p a s s
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #i t   a r o u n d N
+// #####
+loop_start loop_op_2461
+loop_op_2459:
+dec_ptr
+loop_end loop_op_2459
+loop_op_2461:
+add_ptr 2
+// go to cell 2
+dec_data
+// subtract 1 from cell 2
+// ########################
+// ### display last line ##
+// ########################
+// #
+// #
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #X     b o t t l e s   o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l
+// #####
+loop_start loop_op_2537
+loop_op_2535:
+dec_ptr
+loop_end loop_op_2535
+loop_op_2537:
+add_ptr 3
+dec_data
+// go to cell 3/subtract 1
+loop_end loop_op_2244
+loop_op_2543:
+// end loop when cell 3 is 0
+inc_data
+// add 1 to cell 3 to keep it non\zero
+loop_start loop_op_2549
+loop_op_2547:
+inc_ptr
+loop_end loop_op_2547
+loop_op_2549:
+dec_ptr
+output
+// go to last line/carriage return
+loop_start loop_op_2555
+loop_op_2553:
+dec_ptr
+loop_end loop_op_2553
+loop_op_2555:
+inc_ptr
+// go to first line
+// ########################
+// ### correct last line ##
+// ########################
+// #
+// #
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+add_ptr 2
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// # X     b o t t l e    o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+sub_ptr 4
+output
+// #o n   t h e   w a l l
+// #####
+loop_start loop_op_2633
+loop_op_2631:
+inc_ptr
+loop_end loop_op_2631
+loop_op_2633:
+sub_ptr 2
+// go to last cell and back to LF
+output
+output
+// output 2 newlines
+loop_start loop_op_2642
+loop_op_2640:
+dec_ptr
+loop_end loop_op_2640
+loop_op_2642:
+inc_ptr
+// go to first line
+// #########################
+// ### the final verse    ##
+// #########################
+// #
+// #
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+add_ptr 2
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// # X     b o t t l e    o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l N
+// #
+loop_start loop_op_2717
+loop_op_2715:
+dec_ptr
+loop_end loop_op_2715
+loop_op_2717:
+inc_ptr
+// go to first cell
+// #
+inc_ptr
+output
+add_ptr 3
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+add_ptr 2
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+add_ptr 13
+output
+inc_ptr
+// # X     b o t t l e    o f   b e e r             N
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #t a k e   o n e   d o w n   a n d   p a s s
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #i t   a r o u n d N
+// #
+loop_start loop_op_2844
+loop_op_2842:
+inc_ptr
+loop_end loop_op_2842
+loop_op_2844:
+dec_ptr
+// go to last line
+// #
+sub_ptr 3
+output
+sub_ptr 2
+output
+sub_ptr 3
+output
+// #   n  o
+// #
+loop_start loop_op_2863
+loop_op_2861:
+dec_ptr
+loop_end loop_op_2861
+loop_op_2863:
+add_ptr 4
+// go to fourth cell
+// #
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+// #   b o t t l e s   o f   b e e r
+// #
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// #o n   t h e   w a l l N
+// #####fin##
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

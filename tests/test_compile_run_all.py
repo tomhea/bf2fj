@@ -7,10 +7,15 @@ from src.bf2fj import compile_brainfuck_file_to_flipjump_file
 
 PROGRAMS_PATH = Path(__file__).parent.parent / "programs"
 BRAINFUCK_ORG_PATH = PROGRAMS_PATH / 'brainfuck.org'
+SIMPLE_PRINTS_PATH = PROGRAMS_PATH / 'simple_prints'
+UMULLER_PATH = PROGRAMS_PATH / 'umueller-brainfuck'
 
 PROGRAM_DIRECTORIES = [
-    PROGRAMS_PATH / 'hello_world',
-    PROGRAMS_PATH / 'hello_100nops',
+    SIMPLE_PRINTS_PATH / 'hello_world',
+    SIMPLE_PRINTS_PATH / 'hello_100nops',
+
+    UMULLER_PATH / 'prime',
+
     BRAINFUCK_ORG_PATH / 'bsort',
     BRAINFUCK_ORG_PATH / 'collatz',
     BRAINFUCK_ORG_PATH / 'dbf2c',
@@ -29,7 +34,6 @@ PROGRAM_DIRECTORIES = [
     BRAINFUCK_ORG_PATH / 'numwarp',
     BRAINFUCK_ORG_PATH / 'qsort',
     BRAINFUCK_ORG_PATH / 'random',
-    BRAINFUCK_ORG_PATH / 'README.md',
     BRAINFUCK_ORG_PATH / 'rot13',
     BRAINFUCK_ORG_PATH / 'short',
     BRAINFUCK_ORG_PATH / 'sierpinski',
@@ -96,7 +100,8 @@ def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: byt
     """
     assemble_and_run_test_output([flipjump_code_path], fixed_input, expected_output,
                                  should_raise_assertion_error=True,
-                                 memory_width=DEFAULT_FJM_WIDTH, last_ops_debugging_list_length=DEBUG_INFO_LENGTH)
+                                 memory_width=DEFAULT_FJM_WIDTH, last_ops_debugging_list_length=DEBUG_INFO_LENGTH,
+                                 )
 
 
 @pytest.mark.parametrize("program_directory", PROGRAM_DIRECTORIES)

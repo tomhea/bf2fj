@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bf2fj_compiler import Bf2FjCompiler
+from src.bf2fj_compiler import Bf2FjCompiler
 
 from flipjump.utils.classes import PrintTimer
 

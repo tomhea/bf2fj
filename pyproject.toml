@@ -1,0 +1,50 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry]
+name = "bf2fj"
+version = "1.0.0"
+description = "A brainfuck to flipjump compiler"
+authors = ["Tom Herman <flipjumpproject@gmail.com>"]
+license = "BSD-2-Clause-Simplified"
+readme = "README.md"
+
+homepage = "https://esolangs.org/wiki/FlipJump"
+repository = "https://github.com/tomhea/bf2fj"
+
+keywords = ["esolang", "oisc", "assembly"]
+classifiers = [
+    "Topic :: Education",
+    "Topic :: Software Development :: Assemblers",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: Software Development :: Interpreters",
+    "Topic :: Software Development :: Libraries",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Other",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.7"
+flipjump = "=1.2.1"
+
+# developement
+pytest = { version = "^7.4.0", optional = true }
+
+[tool.poetry.extras]
+tests = ["pytest"]
+
+[tool.poetry.scripts]
+bf2fj = 'bf2fj.bf2fj_cli:main'

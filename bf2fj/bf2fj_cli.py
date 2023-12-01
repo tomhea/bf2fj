@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Tuple
 
-from src.bf2fj_compiler import Bf2FjCompiler
+from bf2fj.bf2fj_compiler import Bf2FjCompiler
 
 from flipjump.utils.classes import PrintTimer
 import flipjump

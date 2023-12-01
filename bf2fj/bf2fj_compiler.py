@@ -1,11 +1,12 @@
+from pathlib import Path
 from typing import List, Union
 
-from definitions import SOURCE_DIR
-from src.bf_classes import BrainfuckNonLoopOps, LineComment, LoopOpWithContext, BrainfuckLoopOps, \
-    OpsBeforeOptimization, OpsAfterOptimization, DataAddOp, DataSetOp, PtrAddOp, \
-    OptimizationDataOp
-from src.compiler_exceptions import CharDoesntMatchHandler, BrainfuckUnbalancedBrackets
+from bf2fj.bf_classes import BrainfuckNonLoopOps, LineComment, LoopOpWithContext, BrainfuckLoopOps, \
+    OpsBeforeOptimization, OpsAfterOptimization, DataAddOp, DataSetOp, PtrAddOp, OptimizationDataOp
+from bf2fj.compiler_exceptions import CharDoesntMatchHandler, BrainfuckUnbalancedBrackets
 
+
+SOURCE_DIR = Path(__file__).parent
 FLIPJUMP_OUTPUT_FORMAT_FILE = SOURCE_DIR / 'flipjump_output_format.fj'
 COMPILED_BRAINFUCK_OPS_SPOT__FJ_FORMAT_CONST = '!!!HERE_THE_COMPILED_BRAINFUCK_OPS_WILL_BE!!!'
 NUMBER_OF_BRAINFUCK_DATA_CELLS__FJ_FORMAT_CONST = "!!!NUMBER_OF_BRAINFUCK_DATA_CELLS!!!"
@@ -27,7 +28,9 @@ ADDING_VALUE_BY_OP = {
     BrainfuckNonLoopOps.DEC_PTR: -1,
 }
 DATA_OPS = (BrainfuckNonLoopOps.INC_DATA, BrainfuckNonLoopOps.DEC_DATA)
+DATA_OPS_TYPE = Union[BrainfuckNonLoopOps.INC_DATA, BrainfuckNonLoopOps.DEC_DATA]
 PTR_OPS = (BrainfuckNonLoopOps.INC_PTR, BrainfuckNonLoopOps.DEC_PTR)
+PTR_OPS_TYPE = Union[BrainfuckNonLoopOps.INC_PTR, BrainfuckNonLoopOps.DEC_PTR]
 
 
 def can_cover_256_loop(jump_value: int) -> bool:
@@ -162,7 +165,7 @@ class Bf2FjCompiler:
             raise BrainfuckUnbalancedBrackets("Brainfuck program ended while still in a loop.")
 
     @staticmethod
-    def optimize_multiple_data_ops(optimized_ops: List[OpsAfterOptimization], current_op: Union[*DATA_OPS]) -> None:
+    def optimize_multiple_data_ops(optimized_ops: List[OpsAfterOptimization], current_op: DATA_OPS_TYPE) -> None:
         """
         Optimize multiple data ops. +++++ -> +5, ----++- -> -3. Does it in place (updates optimized_ops).
         :param optimized_ops: The current list of the already optimized ops.
@@ -177,7 +180,7 @@ class Bf2FjCompiler:
             optimized_ops.append(DataAddOp(value_diff))
 
     @staticmethod
-    def optimize_multiple_pointer_ops(optimized_ops: List[OpsAfterOptimization], current_op: Union[*PTR_OPS]) -> None:
+    def optimize_multiple_pointer_ops(optimized_ops: List[OpsAfterOptimization], current_op: PTR_OPS_TYPE) -> None:
         """
         Optimize multiple data ops. ">>>>>" -> ">5", "<<<<>><" -> "<3". Does it in place (updates optimized_ops).
         :param optimized_ops: The current list of the already optimized ops.

@@ -22,21 +22,21 @@ LINUSAKESSON_PATH = PROGRAMS_PATH / 'linusakesson'
 
 
 ARCHIVE_QUINE_DIRS = [
-    # ARCHIVE_BERTRAM_QUINE / 't',   # 40 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'u',   # 50 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'v',   # 50 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'x',   # 50 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'y',   # 50 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'z',   # 27 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'z2',  # 22 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'z3',  # 21 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'z4',  # 3 minutes
-    # ARCHIVE_BERTRAM_QUINE / 'z5',  # 4 minutes
-    # ARCHIVE_BERTRAM_QUINE / 'z6',  # 25 seconds
-    # ARCHIVE_BERTRAM_QUINE / 'z7',  # 5 minutes
-    # ARCHIVE_BERTRAM_QUINE / 'z8',  # 9 minutes
-    # ARCHIVE_BERTRAM_QUINE / 'z9',  # took a lot of time, hasn't finished
-    # ARCHIVE_BERTRAM_QUINE / 'z9a',
+    ARCHIVE_BERTRAM_QUINE / 't',   # 40 seconds
+    ARCHIVE_BERTRAM_QUINE / 'u',   # 50 seconds
+    ARCHIVE_BERTRAM_QUINE / 'v',   # 50 seconds
+    ARCHIVE_BERTRAM_QUINE / 'x',   # 50 seconds
+    ARCHIVE_BERTRAM_QUINE / 'y',   # 50 seconds
+    ARCHIVE_BERTRAM_QUINE / 'z',   # 27 seconds
+    ARCHIVE_BERTRAM_QUINE / 'z2',  # 22 seconds
+    ARCHIVE_BERTRAM_QUINE / 'z3',  # 21 seconds
+    ARCHIVE_BERTRAM_QUINE / 'z4',  # 3 minutes
+    ARCHIVE_BERTRAM_QUINE / 'z5',  # 4 minutes
+    ARCHIVE_BERTRAM_QUINE / 'z6',  # 25 seconds
+    ARCHIVE_BERTRAM_QUINE / 'z7',  # 5 minutes
+    ARCHIVE_BERTRAM_QUINE / 'z8',  # 9 minutes
+    ARCHIVE_BERTRAM_QUINE / 'z9',  # takes a lot of time.
+    ARCHIVE_BERTRAM_QUINE / 'z9a',  # takes a lot of time.
 
     ARCHIVE_QUINE / 'dquine',
     ARCHIVE_QUINE / 'quine-bock',
@@ -57,11 +57,10 @@ SIMPLE_PRINTS_DIRS = [
 
 FRANS_FAASE_DIRS = [
     FRANS_FAASE_PATH / '99_bottles',  # 50 seconds
-    # FRANS_FAASE_PATH / 'BFinterpreter_fails',  # fails with EOF read.
     FRANS_FAASE_PATH / 'BFinterpreter_working',  # 4 seconds
     FRANS_FAASE_PATH / 'quine1',  # 15 seconds
     FRANS_FAASE_PATH / 'quine2',  # 50 seconds
-    # FRANS_FAASE_PATH / 'quine3',  # takes a lot of time, haven't finished.
+    FRANS_FAASE_PATH / 'quine3',  # takes a lot of time, haven't finished.
 ]
 
 ARCHIVE_CODE_GOLF_DIRS = [
@@ -74,13 +73,13 @@ ARCHIVE_CODE_GOLF_DIRS = [
     ARCHIVE_CODE_GOLF_TEXT / 'cgolf_text_bf_7',
     ARCHIVE_CODE_GOLF_TEXT / 'cgolf_text_bf_8',
 
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_1',  # takes a lot of time, haven't finished.
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_2',  # takes a lot of time, haven't finished.
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_3',  # takes a lot of time, haven't finished.
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_4',  # takes a lot of time, haven't finished.
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_5',  # takes a lot of time, haven't finished.
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_6',  # takes a lot of time, haven't finished.
-    # CODE_GOLF_SET / 'cgolf_num_set_repr_7',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_1',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_2',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_3',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_4',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_5',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_6',  # takes a lot of time, haven't finished.
+    ARCHIVE_CODE_GOLF_SET / 'cgolf_num_set_repr_7',  # takes a lot of time, haven't finished.
 
     # about 4-7 seconds each:
     ARCHIVE_CODE_GOLF_SORT / 'cgolf_sort_1',

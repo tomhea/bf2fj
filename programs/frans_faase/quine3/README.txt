@@ -1,1 +1,1 @@
-A brainfuck quine by Jeremy Bruestle.
+A brainfuck quine by Brian Raiter.

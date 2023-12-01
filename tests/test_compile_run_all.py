@@ -35,7 +35,7 @@ def get_brainfuck_program_path(program_directory: Path) -> Path:
                           f'{program_directory.absolute()}. You should only have one brainfuck file there.')
 
 
-def compile_and_test_single_program(program_directory: Path) -> None:
+def compile_and_test_single_program(program_directory: Path, *, compile_only=False) -> None:
     if not program_directory.is_dir() or not program_directory.exists():
         raise FileNotFoundError(f"Can't find the next directory: {program_directory.absolute()}")
 
@@ -45,6 +45,8 @@ def compile_and_test_single_program(program_directory: Path) -> None:
     compiled_flipjump_path = program_directory / f"{program_directory.name}{FLIPJUMP_EXTENSION}"
 
     compile_brainfuck_file_to_flipjump_file(brainfuck_program_path, compiled_flipjump_path)
+    if compile_only:
+        return
     with open(fixed_input_path, 'rb') as fixed_input_file, open(expected_output_path, 'rb') as expected_output_file:
         run_fj_and_verify_expected_output(compiled_flipjump_path, fixed_input_file.read(), expected_output_file.read())
 

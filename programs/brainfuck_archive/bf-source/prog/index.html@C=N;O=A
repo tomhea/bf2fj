@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+ <head>
+  <title>Index of /esoteric/brainfuck/bf-source/prog</title>
+ </head>
+ <body>
+<h1>Index of /esoteric/brainfuck/bf-source/prog</h1>
+  <table>
+   <tr><th valign="top"><img src="/icons/blank.gif" alt="[ICO]"></th><th><a href="?C=N;O=D">Name</a></th><th><a href="?C=M;O=A">Last modified</a></th><th><a href="?C=S;O=A">Size</a></th><th><a href="?C=D;O=A">Description</a></th></tr>
+   <tr><th colspan="5"><hr></th></tr>
+<tr><td valign="top"><img src="/icons/back.gif" alt="[PARENTDIR]"></td><td><a href="/esoteric/brainfuck/bf-source/">Parent Directory</a></td><td>&nbsp;</td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="2d_table.bf">2d_table.bf</a></td><td align="right">2002-11-26 11:25  </td><td align="right">1.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="99botles.bf">99botles.bf</a></td><td align="right">1998-03-15 22:44  </td><td align="right">3.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="196-commented.b">196-commented.b</a></td><td align="right">2004-07-29 12:24  </td><td align="right">4.5K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="196.b">196.b</a></td><td align="right">2004-07-29 12:24  </td><td align="right">2.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="ATOI.B">ATOI.B</a></td><td align="right">1993-05-21 22:52  </td><td align="right">461 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="BFC.BF">BFC.BF</a></td><td align="right">2000-07-11 13:37  </td><td align="right">3.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="BFI.BF">BFI.BF</a></td><td align="right">2000-07-11 13:21  </td><td align="right">6.4K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="BOTTLES.BF">BOTTLES.BF</a></td><td align="right">2001-03-14 00:21  </td><td align="right">3.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="ECHO2.BF">ECHO2.BF</a></td><td align="right">2000-07-09 22:56  </td><td align="right"> 59 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="HELLOBF.BF">HELLOBF.BF</a></td><td align="right">2000-07-11 13:33  </td><td align="right">212 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="HELLOBF2.BF">HELLOBF2.BF</a></td><td align="right">2000-12-07 12:09  </td><td align="right">185 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="HELLOUM.BF">HELLOUM.BF</a></td><td align="right">2001-03-14 00:25  </td><td align="right">114 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="PI16.BF">PI16.BF</a></td><td align="right">2000-07-17 12:42  </td><td align="right"> 24K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="PRIME.BF">PRIME.BF</a></td><td align="right">2001-04-30 00:19  </td><td align="right">4.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="SORT.BF">SORT.BF</a></td><td align="right">2000-07-11 21:31  </td><td align="right">181 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="beer.b">beer.b</a></td><td align="right">2002-10-02 18:01  </td><td align="right">1.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="bertram-rot13.bf">bertram-rot13.bf</a></td><td align="right">2001-07-21 14:00  </td><td align="right">195 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="bertram-sort.bf">bertram-sort.bf</a></td><td align="right">2001-07-21 14:00  </td><td align="right"> 75 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="bfcl.bf">bfcl.bf</a></td><td align="right">2003-05-16 08:49  </td><td align="right"> 29K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="bfi446.b">bfi446.b</a></td><td align="right">2003-09-04 12:16  </td><td align="right">446 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="bfi446.rbf">bfi446.rbf</a></td><td align="right">2003-09-04 12:16  </td><td align="right">3.9K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/folder.gif" alt="[DIR]"></td><td><a href="bfide-examples/">bfide-examples/</a></td><td align="right">2002-01-22 09:55  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="bockbeer.b">bockbeer.b</a></td><td align="right">2001-07-20 10:38  </td><td align="right">3.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="char.bf">char.bf</a></td><td align="right">2001-07-09 20:14  </td><td align="right"> 69 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="collatz.b">collatz.b</a></td><td align="right">2004-07-23 13:13  </td><td align="right">1.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="css-brainfuck.bf">css-brainfuck.bf</a></td><td align="right">2001-05-05 12:31  </td><td align="right">9.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="dbf2c.b">dbf2c.b</a></td><td align="right">2004-07-23 13:13  </td><td align="right">1.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="dbfi.b">dbfi.b</a></td><td align="right">2004-07-23 13:14  </td><td align="right">596 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="decss.bf">decss.bf</a></td><td align="right">2001-10-16 10:52  </td><td align="right"> 10K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="dquine.b">dquine.b</a></td><td align="right">2004-07-23 13:14  </td><td align="right">1.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="dvorak.b">dvorak.b</a></td><td align="right">2004-07-23 13:14  </td><td align="right">1.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="factor.b.txt">factor.b.txt</a></td><td align="right">1999-12-09 20:18  </td><td align="right">5.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="fib.b">fib.b</a></td><td align="right">2004-07-23 13:14  </td><td align="right">353 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="fibo7.b">fibo7.b</a></td><td align="right">2003-04-17 16:34  </td><td align="right">487 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="fibonacci.txt">fibonacci.txt</a></td><td align="right">2003-01-23 19:10  </td><td align="right">2.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="gameoflife.b">gameoflife.b</a></td><td align="right">2002-06-13 15:00  </td><td align="right">3.5K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="hanoi.bf">hanoi.bf</a></td><td align="right">2005-05-06 12:26  </td><td align="right"> 53K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="hello2.b">hello2.b</a></td><td align="right">2000-02-14 04:53  </td><td align="right">182 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="hello3.b">hello3.b</a></td><td align="right">2000-02-17 17:03  </td><td align="right">156 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="hello_world.b">hello_world.b</a></td><td align="right">2003-05-06 14:30  </td><td align="right">145 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="hellom.bf">hellom.bf</a></td><td align="right">2000-12-07 12:15  </td><td align="right">116 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="helloyou.bf">helloyou.bf</a></td><td align="right">2002-11-26 11:48  </td><td align="right">556 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="htmlconv.bf">htmlconv.bf</a></td><td align="right">2001-08-02 10:39  </td><td align="right">6.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="jabh.b">jabh.b</a></td><td align="right">2004-07-23 13:14  </td><td align="right">219 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="links.txt">links.txt</a></td><td align="right">2002-11-26 13:48  </td><td align="right">502 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="mandelbrot.b">mandelbrot.b</a></td><td align="right">2003-07-19 20:29  </td><td align="right"> 11K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="numwarp.b">numwarp.b</a></td><td align="right">2004-07-23 13:15  </td><td align="right">1.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="oobrain.b">oobrain.b</a></td><td align="right">2003-04-04 12:07  </td><td align="right"> 64K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="puts.rbf">puts.rbf</a></td><td align="right">2003-08-06 02:15  </td><td align="right">1.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="quine505.b">quine505.b</a></td><td align="right">2003-07-19 20:29  </td><td align="right">530 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="quinetail505.b">quinetail505.b</a></td><td align="right">2003-07-19 20:29  </td><td align="right">711 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="random.b">random.b</a></td><td align="right">2004-07-23 13:15  </td><td align="right">422 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="rot13.b">rot13.b</a></td><td align="right">2004-07-23 13:15  </td><td align="right">1.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="rot13.bf">rot13.bf</a></td><td align="right">2001-07-20 14:55  </td><td align="right">647 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="rpn.b">rpn.b</a></td><td align="right">2002-08-07 15:33  </td><td align="right">5.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="ryan-beer.bf">ryan-beer.bf</a></td><td align="right">2002-12-02 17:38  </td><td align="right">897 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="short.b">short.b</a></td><td align="right">2004-07-23 13:15  </td><td align="right">2.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="tests.b">tests.b</a></td><td align="right">2004-07-23 13:30  </td><td align="right">2.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="triangle.bf">triangle.bf</a></td><td align="right">2002-11-26 11:20  </td><td align="right">1.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="utm.b">utm.b</a></td><td align="right">2004-07-23 13:16  </td><td align="right"> 18K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="wc.b">wc.b</a></td><td align="right">2004-07-23 13:16  </td><td align="right">532 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="yapi.b">yapi.b</a></td><td align="right">2005-05-06 12:21  </td><td align="right">1.1K</td><td>&nbsp;</td></tr>
+   <tr><th colspan="5"><hr></th></tr>
+</table>
+<address>Apache/2.4.38 (Debian) Server at sange.fi Port 443</address>
+</body></html>

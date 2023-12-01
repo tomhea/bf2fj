@@ -1,0 +1,625 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+inc_ptr
+add_data 252
+inc_ptr
+add_data 254
+inc_ptr
+inc_data
+inc_ptr
+add_data 4
+inc_ptr
+add_data 2
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+add_data 254
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+add_data 254
+inc_ptr
+add_data 253
+inc_ptr
+dec_data
+add_ptr 6
+inc_data
+inc_ptr
+add_data 2
+add_ptr 6
+add_data 2
+inc_ptr
+dec_data
+add_ptr 15
+inc_data
+add_ptr 4
+add_data 2
+inc_ptr
+dec_data
+add_ptr 4
+inc_data
+inc_ptr
+add_data 253
+inc_ptr
+add_data 2
+inc_ptr
+add_data 253
+inc_ptr
+add_data 253
+inc_ptr
+add_data 253
+inc_ptr
+add_data 2
+inc_ptr
+inc_data
+inc_ptr
+add_data 254
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+add_data 4
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+add_ptr 2
+add_data 2
+inc_ptr
+inc_data
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+add_data 254
+inc_ptr
+dec_data
+inc_ptr
+add_data 253
+inc_ptr
+inc_data
+add_ptr 2
+add_data 2
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+add_data 253
+inc_ptr
+add_data 253
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+add_ptr 2
+add_data 2
+inc_ptr
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+add_data 2
+inc_ptr
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+add_data 2
+inc_ptr
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+add_data 2
+add_ptr 2
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+add_data 254
+inc_ptr
+inc_data
+add_ptr 2
+dec_data
+add_ptr 2
+dec_data
+add_ptr 5
+inc_data
+inc_ptr
+add_data 2
+add_ptr 5
+dec_data
+inc_ptr
+add_data 253
+inc_ptr
+add_data 4
+inc_ptr
+add_data 253
+inc_ptr
+inc_data
+inc_ptr
+add_data 254
+inc_ptr
+add_data 253
+inc_ptr
+dec_data
+add_ptr 10
+inc_data
+inc_ptr
+add_data 2
+add_ptr 8
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+add_data 2
+inc_ptr
+add_data 253
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+add_data 254
+add_ptr 5
+inc_data
+inc_ptr
+add_data 254
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+add_ptr 2
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+add_data 2
+add_ptr 2
+add_data 2
+add_ptr 4
+add_data 4
+loop_start loop_op_387
+loop_op_370:
+inc_data
+loop_start loop_op_381
+loop_op_372:
+add_ptr 3
+inc_data
+sub_ptr 3
+inc_data
+loop_end loop_op_372
+loop_op_381:
+dec_ptr
+add_data 4
+loop_end loop_op_370
+loop_op_387:
+add_ptr 3
+dec_data
+loop_start loop_op_544
+loop_op_392:
+sub_ptr 2
+add_data 7
+loop_start loop_op_415
+loop_op_402:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_402
+loop_op_415:
+dec_ptr
+dec_data
+output
+dec_data
+inc_ptr
+add_data 4
+loop_start loop_op_436
+loop_op_425:
+dec_ptr
+add_data 4
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_425
+loop_op_436:
+add_ptr 2
+inc_data
+loop_start loop_op_475
+loop_op_440:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_474
+loop_op_445:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_473
+loop_op_450:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_472
+loop_op_455:
+inc_data
+dec_ptr
+inc_data
+sub_ptr 2
+add_data 254
+add_ptr 3
+loop_start loop_op_471
+loop_op_466:
+inc_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_466
+loop_op_471:
+loop_end loop_op_455
+loop_op_472:
+loop_end loop_op_450
+loop_op_473:
+loop_end loop_op_445
+loop_op_474:
+loop_end loop_op_440
+loop_op_475:
+dec_ptr
+loop_start loop_op_485
+loop_op_477:
+inc_data
+dec_ptr
+inc_data
+dec_ptr
+output
+add_ptr 2
+loop_end loop_op_477
+loop_op_485:
+dec_ptr
+loop_start loop_op_540
+loop_op_487:
+add_data 253
+loop_start loop_op_539
+loop_op_491:
+dec_data
+dec_ptr
+add_data 3
+inc_ptr
+loop_start loop_op_538
+loop_op_498:
+add_data 3
+dec_ptr
+add_data 14
+inc_ptr
+loop_start loop_op_537
+loop_op_518:
+add_data 5
+loop_start loop_op_533
+loop_op_524:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_end loop_op_524
+loop_op_533:
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_518
+loop_op_537:
+loop_end loop_op_498
+loop_op_538:
+loop_end loop_op_491
+loop_op_539:
+loop_end loop_op_487
+loop_op_540:
+add_ptr 3
+loop_end loop_op_392
+loop_op_544:
+sub_ptr 4
+loop_start loop_op_552
+loop_op_549:
+output
+dec_ptr
+loop_end loop_op_549
+loop_op_552:
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

@@ -1,0 +1,16 @@
+
+BrainFuck related links: (That worked in year 2002)
+---------------------------------------------------
+
+Linus Akersson's BrainFuck page. This page includes famous Game of Life implemented in BF
+http://www.df.lth.se/~lft/brainfuck/
+
+BrainFuck mailing list:
+https://ischtar.koeln.ccc.de/mailman/listinfo/friends-of-brainfuck
+
+Frans Faase's BrainFuck page:
+http://home.planet.nl/~faase009/Ha_BF.html
+
+Interesting sources by Daniel Cristofani:
+http://www.hevanet.com/cristofd/brainfuck/
+

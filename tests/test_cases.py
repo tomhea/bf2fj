@@ -11,9 +11,39 @@ ARCHIVE_PATH = PROGRAMS_PATH / 'brainfuck_archive'
 CODE_GOLF_TEXT = ARCHIVE_PATH / 'code_golf_text_to_bf_that_prints_it'
 CODE_GOLF_SET = ARCHIVE_PATH / 'code_golf_set_theory_num_repr'
 CODE_GOLF_SORT = ARCHIVE_PATH / 'code_golf_sort_bytes'
+ARCHIVE_SRC = ARCHIVE_PATH / 'bf-source'
+ARCHIVE_QUINE = ARCHIVE_SRC / 'quine'
+ARCHIVE_BERTRAM_QUINE = ARCHIVE_QUINE / 'BertramFelgenhauer'
 
 
 PROGRAM_DIRECTORIES = [
+    # ARCHIVE_BERTRAM_QUINE / 't',   # 40 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'u',   # 50 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'v',   # 50 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'x',   # 50 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'y',   # 50 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'z',   # 27 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'z2',  # 22 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'z3',  # 21 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'z4',  # 3 minutes
+    # ARCHIVE_BERTRAM_QUINE / 'z5',  # 4 minutes
+    # ARCHIVE_BERTRAM_QUINE / 'z6',  # 25 seconds
+    # ARCHIVE_BERTRAM_QUINE / 'z7',  # 5 minutes
+    # ARCHIVE_BERTRAM_QUINE / 'z8',  # 9 minutes
+    # ARCHIVE_BERTRAM_QUINE / 'z9',  # took a lot of time, hasn't finished
+    # ARCHIVE_BERTRAM_QUINE / 'z9a',
+
+    ARCHIVE_QUINE / 'dquine',
+    ARCHIVE_QUINE / 'quine-bock',
+    ARCHIVE_QUINE / 'quine410',
+    ARCHIVE_QUINE / 'quine414',
+    ARCHIVE_QUINE / 'quinebf',
+    ARCHIVE_QUINE / 'QUINEBF1',
+    ARCHIVE_QUINE / 'QUINEBF3',
+    ARCHIVE_QUINE / 'ryanquine',
+    ARCHIVE_QUINE / 'selfmodquine',
+    ARCHIVE_QUINE / 'selfportrait',
+
     SIMPLE_PRINTS_PATH / 'hello_world',  # 1 second
     SIMPLE_PRINTS_PATH / 'hello_100nops',  # 1 second
 
@@ -75,7 +105,6 @@ PROGRAM_DIRECTORIES = [
     BRAINFUCK_ORG_PATH / 'qsort',
     BRAINFUCK_ORG_PATH / 'random',
     BRAINFUCK_ORG_PATH / 'rot13',
-    BRAINFUCK_ORG_PATH / 'short',
     BRAINFUCK_ORG_PATH / 'sierpinski',
     BRAINFUCK_ORG_PATH / 'squares',
     BRAINFUCK_ORG_PATH / 'squares2',

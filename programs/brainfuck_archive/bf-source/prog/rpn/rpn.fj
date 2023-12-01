@@ -1,0 +1,1528 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+// rpn calculator
+// Patrick Schultz patrickschultz@usa
+output
+// net
+// Sat
+input
+// 4 Aug 2001 02:36:57
+dec_data
+// 0700
+// Hello everybody
+input
+// I discovered brainfuck about a year ago
+input
+// and in my first period of
+// interest I wrote a calculator program with addition
+input
+// subtraction
+input
+// multiplication and division
+output
+// It uses the reverse polish notation
+input
+// so it
+// takes input like this:
+// 56 4 / 5 13 *
+inc_data
+// (the line must end with a end line
+input
+// ascii
+// 13
+input
+// or the program will infinite loop)
+// Now I have remembered this fun little language and want to try doing
+// something else
+output
+// I found this mailing list while surfing the web
+input
+// and
+// promptly joined
+output
+// I though I would first share my program in case anyone
+// is interested
+output
+// The code
+input
+// both with comments and without
+input
+// is at the
+// bottom of the message
+output
+// The comments are from when I was working on the
+// program
+input
+// and I never intended them for anyone but myself
+input
+// so they
+// probably won't make much sense
+input
+// so I apologize
+output
+// I have only run this
+// program on the online javascript bf interpreter
+input
+// so I don't know for
+// sure if it would run elsewhere
+output
+// So now I am looking for a new project
+output
+// Some ideas I have had are:
+// write an interpreter for another language in brainfuck
+input
+// implement the
+// encryption  algorithm RC4
+input
+// or perhaps a library of sorts
+input
+// with various
+// useful algorithms and data structures
+output
+// If anybody has any ideas
+input
+// things
+// you were thinking about or wanted to see done
+input
+// or even better
+input
+// would
+// like to work on something with me
+input
+// I would really like to hear
+output
+// Anyways
+input
+// here is the code:
+inc_data
+loop_start loop_op_716
+loop_op_95:
+// set continue flag to true and start loop
+dec_data
+input
+// clear continue flag and get input
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+// set five bools
+add_data 243
+loop_start loop_op_236
+loop_op_132:
+inc_ptr
+dec_data
+dec_ptr
+add_data 237
+// if not 13 (ret) sub 19
+loop_start loop_op_235
+loop_op_156:
+add_ptr 2
+dec_data
+sub_ptr 2
+add_data 246
+// if not 32 (space) clear first bool
+loop_start loop_op_234
+loop_op_173:
+add_ptr 3
+dec_data
+sub_ptr 3
+dec_data
+// if not 42 (mul) clear second bool
+loop_start loop_op_233
+loop_op_183:
+add_ptr 4
+dec_data
+sub_ptr 4
+add_data 254
+// if not 43 (add) clear third bool
+loop_start loop_op_232
+loop_op_196:
+add_ptr 5
+dec_data
+sub_ptr 5
+add_data 254
+// if not 45 (sub) clear fourth bool
+loop_start loop_op_231
+loop_op_211:
+add_ptr 6
+set_data 0
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_211
+loop_op_231:
+loop_end loop_op_196
+loop_op_232:
+loop_end loop_op_183
+loop_op_233:
+loop_end loop_op_173
+loop_op_234:
+loop_end loop_op_156
+loop_op_235:
+loop_end loop_op_132
+loop_op_236:
+// if not 47 (div) clear fifth
+// bool and move remaining number (digit plus one) to sixth spot
+inc_ptr
+loop_start loop_op_257
+loop_op_240:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 5
+loop_end loop_op_240
+loop_op_257:
+// if input was a ret
+// clear rest of bools and do not reset continue flag
+inc_ptr
+loop_start loop_op_280
+loop_op_261:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 6
+inc_data
+add_ptr 2
+loop_end loop_op_261
+loop_op_280:
+// if input was a
+// space clear rest of bools and reset continue flag
+inc_ptr
+loop_start loop_op_348
+loop_op_284:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 7
+dec_data
+dec_ptr
+dec_data
+// if
+// input was (mul) clear rest of bools and go back to second to last num on
+// stack
+loop_start loop_op_330
+loop_op_305:
+inc_ptr
+loop_start loop_op_315
+loop_op_307:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_307
+loop_op_315:
+add_ptr 2
+loop_start loop_op_325
+loop_op_318:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_318
+loop_op_325:
+sub_ptr 3
+dec_data
+loop_end loop_op_305
+loop_op_330:
+inc_data
+inc_ptr
+set_data 1
+inc_ptr
+loop_start loop_op_345
+loop_op_338:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_338
+loop_op_345:
+add_ptr 2
+loop_end loop_op_284
+loop_op_348:
+// multiply last two items together leaving answer in spot of first; reset
+// continue flag
+inc_ptr
+loop_start loop_op_379
+loop_op_352:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 7
+// if
+// input was (add) clear rest of bools and go back to last num on stack
+dec_data
+loop_start loop_op_373
+loop_op_368:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_368
+loop_op_373:
+inc_data
+add_ptr 4
+loop_end loop_op_352
+loop_op_379:
+// add
+// last two items together; reset continue flag
+inc_ptr
+loop_start loop_op_409
+loop_op_383:
+dec_data
+inc_ptr
+dec_data
+sub_ptr 7
+// if input was
+// (sub) clear rest of bools and go back to last num on stack
+dec_data
+loop_start loop_op_402
+loop_op_397:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_397
+loop_op_402:
+inc_data
+add_ptr 5
+loop_end loop_op_383
+loop_op_409:
+// sub last item from
+// second to last; reset continue flag
+inc_ptr
+loop_start loop_op_552
+loop_op_413:
+dec_data
+sub_ptr 7
+// if input was (div) clear
+// div bool and go back to second to last num on stack
+dec_data
+loop_start loop_op_433
+loop_op_425:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_425
+loop_op_433:
+inc_ptr
+dec_data
+inc_ptr
+loop_start loop_op_444
+loop_op_437:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_437
+loop_op_444:
+sub_ptr 3
+dec_data
+// copy B to (1)
+// using (2) as tmp storage
+loop_start loop_op_520
+loop_op_451:
+// decrement through A; add one to (3) every Bth time
+add_ptr 4
+inc_data
+sub_ptr 2
+// (3) is
+// bool; says if (1)==0
+loop_start loop_op_472
+loop_op_462:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_462
+loop_op_472:
+inc_ptr
+loop_start loop_op_479
+loop_op_474:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_474
+loop_op_479:
+// if (1) != 0
+// set (3) to 0
+inc_ptr
+loop_start loop_op_511
+loop_op_483:
+dec_data
+sub_ptr 3
+loop_start loop_op_496
+loop_op_488:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_488
+loop_op_496:
+add_ptr 2
+loop_start loop_op_506
+loop_op_499:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_499
+loop_op_506:
+add_ptr 2
+inc_data
+dec_ptr
+loop_end loop_op_483
+loop_op_511:
+// if (1)=0 reset (1)
+// and add one to (4)
+sub_ptr 2
+dec_data
+sub_ptr 2
+dec_data
+loop_end loop_op_451
+loop_op_520:
+inc_data
+inc_ptr
+set_data 1
+inc_ptr
+set_data 0
+add_ptr 3
+loop_start loop_op_547
+loop_op_534:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_534
+loop_op_547:
+add_ptr 2
+// clear A and B
+// and all temporary data and move answer in spot of A
+loop_end loop_op_413
+loop_op_552:
+inc_ptr
+loop_start loop_op_707
+loop_op_554:
+// if input was first digit of a number
+dec_ptr
+inc_data
+add_ptr 2
+// a one in case input is zero;  Resulting
+// number ends up in the space the "1" is in
+input
+inc_ptr
+add_data 8
+loop_start loop_op_580
+loop_op_572:
+dec_ptr
+add_data 252
+inc_ptr
+dec_data
+loop_end loop_op_572
+loop_op_580:
+dec_ptr
+// get digit and subtract 32 from it to
+// test for space
+loop_start loop_op_623
+loop_op_584:
+// begin main input loop
+inc_ptr
+add_data 5
+loop_start loop_op_599
+loop_op_592:
+dec_ptr
+add_data 253
+inc_ptr
+dec_data
+loop_end loop_op_592
+loop_op_599:
+// subtract 15 from remaining number
+// leaving the inputed number plus one
+input
+inc_ptr
+add_data 8
+loop_start loop_op_620
+loop_op_612:
+dec_ptr
+add_data 252
+inc_ptr
+dec_data
+loop_end loop_op_612
+loop_op_620:
+dec_ptr
+// get next digit and subtract 32
+loop_end loop_op_584
+loop_op_623:
+dec_ptr
+loop_start loop_op_627
+loop_op_625:
+dec_ptr
+loop_end loop_op_625
+loop_op_627:
+add_ptr 2
+// go back to first digit inputed after
+// the beginning "1"
+loop_start loop_op_653
+loop_op_632:
+dec_ptr
+dec_data
+loop_start loop_op_649
+loop_op_635:
+inc_ptr
+add_data 10
+dec_ptr
+dec_data
+loop_end loop_op_635
+loop_op_649:
+inc_data
+add_ptr 2
+loop_end loop_op_632
+loop_op_653:
+// multiply digits together leaving "1"
+// in every spot
+dec_ptr
+loop_start loop_op_668
+loop_op_657:
+loop_start loop_op_660
+loop_op_658:
+dec_ptr
+loop_end loop_op_658
+loop_op_660:
+inc_ptr
+inc_data
+loop_start loop_op_665
+loop_op_663:
+inc_ptr
+loop_end loop_op_663
+loop_op_665:
+dec_ptr
+dec_data
+loop_end loop_op_657
+loop_op_668:
+dec_ptr
+loop_start loop_op_673
+loop_op_670:
+dec_data
+dec_ptr
+loop_end loop_op_670
+loop_op_673:
+inc_ptr
+// move number back to begginning clear trail
+// of ones; pntr is at num
+loop_start loop_op_692
+loop_op_677:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_677
+loop_op_692:
+// move number back to top of stack
+sub_ptr 5
+inc_data
+add_ptr 7
+loop_end loop_op_554
+loop_op_707:
+// reset continue flag
+sub_ptr 7
+loop_end loop_op_95
+loop_op_716:
+// move pntr back to continue flag and end loop
+dec_ptr
+loop_start loop_op_726
+loop_op_719:
+add_ptr 2
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_719
+loop_op_726:
+inc_ptr
+// move answer two spaces forward to make sure
+// printer has room
+inc_data
+inc_ptr
+dec_data
+loop_start loop_op_743
+loop_op_733:
+inc_ptr
+inc_data
+sub_ptr 2
+set_data 0
+inc_ptr
+dec_data
+loop_end loop_op_733
+loop_op_743:
+inc_ptr
+loop_start loop_op_750
+loop_op_745:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_745
+loop_op_750:
+dec_ptr
+// if number is zero set spot before num to 1
+loop_start loop_op_872
+loop_op_753:
+// while the remainder is not 0; call
+// current p 0
+inc_ptr
+add_data 9
+dec_ptr
+// (1)=9
+loop_start loop_op_827
+loop_op_768:
+// decrement through the number; adding one
+// to (4) every tenth time
+add_ptr 3
+inc_data
+sub_ptr 2
+// (3) is a boolean; says if (1)==0; (3)=1;
+loop_start loop_op_788
+loop_op_778:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_778
+loop_op_788:
+// if (1) != 0 { (3)=0 }; moves (1) to (2);
+inc_ptr
+loop_start loop_op_796
+loop_op_791:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_791
+loop_op_796:
+// move (2) back to (1);
+inc_ptr
+loop_start loop_op_818
+loop_op_799:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_799
+loop_op_818:
+// if (3) == true { (1)=10; increment (4)
+// (dividend)
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+// dec (1) and (0);
+loop_end loop_op_768
+loop_op_827:
+dec_ptr
+add_data 10
+// set spot before (0) to 10
+add_ptr 2
+loop_start loop_op_849
+loop_op_842:
+sub_ptr 2
+dec_data
+add_ptr 2
+dec_data
+loop_end loop_op_842
+loop_op_849:
+// subtract rem in (1) from 9; making spot
+// before (0) one more than correct digit
+add_ptr 2
+set_data 0
+inc_ptr
+loop_start loop_op_867
+loop_op_858:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_858
+loop_op_867:
+// clear (3) and move (4) to (1)
+sub_ptr 3
+loop_end loop_op_753
+loop_op_872:
+dec_ptr
+loop_start loop_op_876
+loop_op_874:
+inc_ptr
+loop_end loop_op_874
+loop_op_876:
+dec_ptr
+// go to first digit to be displayed; handles case
+// if number was zero
+loop_start loop_op_908
+loop_op_880:
+dec_data
+inc_ptr
+add_data 8
+loop_start loop_op_901
+loop_op_891:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_891
+loop_op_901:
+dec_ptr
+output
+set_data 0
+dec_ptr
+loop_end loop_op_880
+loop_op_908:
+add_ptr 2
+// print sequence of digits backwards;
+// clearing each one; leaving pntr at original spot
+// and without comments (this is much more convenient for using with the
+// online interpreter):
+inc_data
+loop_start loop_op_1480
+loop_op_916:
+dec_data
+input
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+add_data 243
+loop_start loop_op_1049
+loop_op_950:
+inc_ptr
+dec_data
+dec_ptr
+add_data 237
+loop_start loop_op_1048
+loop_op_973:
+add_ptr 2
+dec_data
+sub_ptr 2
+add_data 246
+loop_start loop_op_1047
+loop_op_989:
+add_ptr 3
+dec_data
+sub_ptr 3
+dec_data
+loop_start loop_op_1046
+loop_op_998:
+add_ptr 4
+dec_data
+sub_ptr 4
+add_data 254
+loop_start loop_op_1045
+loop_op_1010:
+add_ptr 5
+dec_data
+sub_ptr 5
+add_data 254
+loop_start loop_op_1044
+loop_op_1024:
+add_ptr 6
+set_data 0
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_1024
+loop_op_1044:
+loop_end loop_op_1010
+loop_op_1045:
+loop_end loop_op_998
+loop_op_1046:
+loop_end loop_op_989
+loop_op_1047:
+loop_end loop_op_973
+loop_op_1048:
+loop_end loop_op_950
+loop_op_1049:
+inc_ptr
+loop_start loop_op_1068
+loop_op_1051:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 5
+loop_end loop_op_1051
+loop_op_1068:
+inc_ptr
+loop_start loop_op_1089
+loop_op_1070:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 6
+inc_data
+add_ptr 2
+loop_end loop_op_1070
+loop_op_1089:
+inc_ptr
+loop_start loop_op_1152
+loop_op_1091:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 7
+dec_data
+dec_ptr
+dec_data
+loop_start loop_op_1134
+loop_op_1109:
+inc_ptr
+loop_start loop_op_1119
+loop_op_1111:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1111
+loop_op_1119:
+add_ptr 2
+loop_start loop_op_1129
+loop_op_1122:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1122
+loop_op_1129:
+sub_ptr 3
+dec_data
+loop_end loop_op_1109
+loop_op_1134:
+inc_data
+inc_ptr
+set_data 1
+inc_ptr
+loop_start loop_op_1149
+loop_op_1142:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1142
+loop_op_1149:
+add_ptr 2
+loop_end loop_op_1091
+loop_op_1152:
+inc_ptr
+loop_start loop_op_1179
+loop_op_1154:
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 7
+dec_data
+loop_start loop_op_1173
+loop_op_1168:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_1168
+loop_op_1173:
+inc_data
+add_ptr 4
+loop_end loop_op_1154
+loop_op_1179:
+inc_ptr
+loop_start loop_op_1205
+loop_op_1181:
+dec_data
+inc_ptr
+dec_data
+sub_ptr 7
+dec_data
+loop_start loop_op_1198
+loop_op_1193:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_1193
+loop_op_1198:
+inc_data
+add_ptr 5
+loop_end loop_op_1181
+loop_op_1205:
+inc_ptr
+loop_start loop_op_1333
+loop_op_1207:
+dec_data
+sub_ptr 7
+dec_data
+loop_start loop_op_1225
+loop_op_1217:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1217
+loop_op_1225:
+inc_ptr
+dec_data
+inc_ptr
+loop_start loop_op_1236
+loop_op_1229:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1229
+loop_op_1236:
+sub_ptr 3
+dec_data
+loop_start loop_op_1303
+loop_op_1241:
+add_ptr 4
+inc_data
+sub_ptr 2
+loop_start loop_op_1259
+loop_op_1249:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_1249
+loop_op_1259:
+inc_ptr
+loop_start loop_op_1266
+loop_op_1261:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_1261
+loop_op_1266:
+inc_ptr
+loop_start loop_op_1296
+loop_op_1268:
+dec_data
+sub_ptr 3
+loop_start loop_op_1281
+loop_op_1273:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1273
+loop_op_1281:
+add_ptr 2
+loop_start loop_op_1291
+loop_op_1284:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1284
+loop_op_1291:
+add_ptr 2
+inc_data
+dec_ptr
+loop_end loop_op_1268
+loop_op_1296:
+sub_ptr 2
+dec_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1241
+loop_op_1303:
+inc_data
+inc_ptr
+set_data 1
+inc_ptr
+set_data 0
+add_ptr 3
+loop_start loop_op_1330
+loop_op_1317:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1317
+loop_op_1330:
+add_ptr 2
+loop_end loop_op_1207
+loop_op_1333:
+inc_ptr
+loop_start loop_op_1472
+loop_op_1335:
+dec_ptr
+inc_data
+add_ptr 2
+input
+inc_ptr
+add_data 8
+loop_start loop_op_1358
+loop_op_1350:
+dec_ptr
+add_data 252
+inc_ptr
+dec_data
+loop_end loop_op_1350
+loop_op_1358:
+dec_ptr
+loop_start loop_op_1395
+loop_op_1360:
+inc_ptr
+add_data 5
+loop_start loop_op_1374
+loop_op_1367:
+dec_ptr
+add_data 253
+inc_ptr
+dec_data
+loop_end loop_op_1367
+loop_op_1374:
+input
+inc_ptr
+add_data 8
+loop_start loop_op_1393
+loop_op_1385:
+dec_ptr
+add_data 252
+inc_ptr
+dec_data
+loop_end loop_op_1385
+loop_op_1393:
+dec_ptr
+loop_end loop_op_1360
+loop_op_1395:
+dec_ptr
+loop_start loop_op_1399
+loop_op_1397:
+dec_ptr
+loop_end loop_op_1397
+loop_op_1399:
+add_ptr 2
+loop_start loop_op_1423
+loop_op_1402:
+dec_ptr
+dec_data
+loop_start loop_op_1419
+loop_op_1405:
+inc_ptr
+add_data 10
+dec_ptr
+dec_data
+loop_end loop_op_1405
+loop_op_1419:
+inc_data
+add_ptr 2
+loop_end loop_op_1402
+loop_op_1423:
+dec_ptr
+loop_start loop_op_1436
+loop_op_1425:
+loop_start loop_op_1428
+loop_op_1426:
+dec_ptr
+loop_end loop_op_1426
+loop_op_1428:
+inc_ptr
+inc_data
+loop_start loop_op_1433
+loop_op_1431:
+inc_ptr
+loop_end loop_op_1431
+loop_op_1433:
+dec_ptr
+dec_data
+loop_end loop_op_1425
+loop_op_1436:
+dec_ptr
+loop_start loop_op_1441
+loop_op_1438:
+dec_data
+dec_ptr
+loop_end loop_op_1438
+loop_op_1441:
+inc_ptr
+loop_start loop_op_1458
+loop_op_1443:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_1443
+loop_op_1458:
+sub_ptr 5
+inc_data
+add_ptr 7
+loop_end loop_op_1335
+loop_op_1472:
+sub_ptr 7
+loop_end loop_op_916
+loop_op_1480:
+dec_ptr
+loop_start loop_op_1489
+loop_op_1482:
+add_ptr 2
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1482
+loop_op_1489:
+inc_ptr
+inc_data
+inc_ptr
+dec_data
+loop_start loop_op_1504
+loop_op_1494:
+inc_ptr
+inc_data
+sub_ptr 2
+set_data 0
+inc_ptr
+dec_data
+loop_end loop_op_1494
+loop_op_1504:
+inc_ptr
+loop_start loop_op_1511
+loop_op_1506:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_1506
+loop_op_1511:
+dec_ptr
+loop_start loop_op_1617
+loop_op_1513:
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_1576
+loop_op_1525:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_1542
+loop_op_1532:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_1532
+loop_op_1542:
+inc_ptr
+loop_start loop_op_1549
+loop_op_1544:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_1544
+loop_op_1549:
+inc_ptr
+loop_start loop_op_1570
+loop_op_1551:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_1551
+loop_op_1570:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_1525
+loop_op_1576:
+dec_ptr
+add_data 10
+add_ptr 2
+loop_start loop_op_1597
+loop_op_1590:
+sub_ptr 2
+dec_data
+add_ptr 2
+dec_data
+loop_end loop_op_1590
+loop_op_1597:
+add_ptr 2
+set_data 0
+inc_ptr
+loop_start loop_op_1613
+loop_op_1604:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_1604
+loop_op_1613:
+sub_ptr 3
+loop_end loop_op_1513
+loop_op_1617:
+dec_ptr
+loop_start loop_op_1621
+loop_op_1619:
+inc_ptr
+loop_end loop_op_1619
+loop_op_1621:
+dec_ptr
+loop_start loop_op_1651
+loop_op_1623:
+dec_data
+inc_ptr
+add_data 8
+loop_start loop_op_1644
+loop_op_1634:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_1634
+loop_op_1644:
+dec_ptr
+output
+set_data 0
+dec_ptr
+loop_end loop_op_1623
+loop_op_1651:
+add_ptr 2
+dec_data
+// Patrick
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

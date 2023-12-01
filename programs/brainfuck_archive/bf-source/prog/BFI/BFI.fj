@@ -1,0 +1,4596 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+// bfi ** Written by Frans Faase
+add_ptr 3
+input
+loop_start loop_op_13
+loop_op_5:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_5
+loop_op_13:
+add_ptr 2
+loop_start loop_op_23
+loop_op_16:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_16
+loop_op_23:
+inc_ptr
+add_data 4
+loop_start loop_op_41
+loop_op_29:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_29
+loop_op_41:
+dec_ptr
+inc_data
+dec_ptr
+loop_start loop_op_57
+loop_op_45:
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 4
+loop_end loop_op_45
+loop_op_57:
+add_ptr 4
+loop_start loop_op_73
+loop_op_62:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_62
+loop_op_73:
+sub_ptr 3
+loop_start loop_op_87
+loop_op_77:
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+loop_end loop_op_77
+loop_op_87:
+add_ptr 3
+loop_start loop_op_100
+loop_op_91:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_91
+loop_op_100:
+sub_ptr 2
+loop_start loop_op_115
+loop_op_103:
+inc_ptr
+loop_start loop_op_110
+loop_op_105:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_105
+loop_op_110:
+dec_ptr
+set_data 0
+loop_end loop_op_103
+loop_op_115:
+inc_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_209
+loop_op_121:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_145
+loop_op_133:
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 4
+loop_end loop_op_133
+loop_op_145:
+add_ptr 4
+loop_start loop_op_161
+loop_op_150:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_150
+loop_op_161:
+sub_ptr 3
+loop_start loop_op_175
+loop_op_165:
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+loop_end loop_op_165
+loop_op_175:
+add_ptr 3
+loop_start loop_op_188
+loop_op_179:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_179
+loop_op_188:
+sub_ptr 2
+loop_start loop_op_203
+loop_op_191:
+inc_ptr
+loop_start loop_op_198
+loop_op_193:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_193
+loop_op_198:
+dec_ptr
+set_data 0
+loop_end loop_op_191
+loop_op_203:
+inc_ptr
+set_data 0
+inc_ptr
+loop_end loop_op_121
+loop_op_209:
+sub_ptr 4
+loop_start loop_op_221
+loop_op_214:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_214
+loop_op_221:
+inc_ptr
+loop_start loop_op_228
+loop_op_223:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_223
+loop_op_228:
+inc_ptr
+loop_start loop_op_2855
+loop_op_230:
+set_data 0
+sub_ptr 3
+loop_start loop_op_245
+loop_op_237:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_237
+loop_op_245:
+add_ptr 2
+loop_start loop_op_255
+loop_op_248:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_248
+loop_op_255:
+inc_ptr
+add_data 6
+loop_start loop_op_274
+loop_op_263:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_263
+loop_op_274:
+dec_ptr
+inc_data
+dec_ptr
+loop_start loop_op_290
+loop_op_278:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_278
+loop_op_290:
+add_ptr 4
+loop_start loop_op_306
+loop_op_295:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_295
+loop_op_306:
+sub_ptr 3
+loop_start loop_op_320
+loop_op_310:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_310
+loop_op_320:
+add_ptr 3
+loop_start loop_op_333
+loop_op_324:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_324
+loop_op_333:
+dec_ptr
+loop_start loop_op_349
+loop_op_335:
+dec_ptr
+loop_start loop_op_344
+loop_op_337:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_337
+loop_op_344:
+inc_ptr
+set_data 0
+loop_end loop_op_335
+loop_op_349:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_446
+loop_op_356:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_380
+loop_op_368:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_368
+loop_op_380:
+add_ptr 4
+loop_start loop_op_396
+loop_op_385:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_385
+loop_op_396:
+sub_ptr 3
+loop_start loop_op_410
+loop_op_400:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_400
+loop_op_410:
+add_ptr 3
+loop_start loop_op_423
+loop_op_414:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_414
+loop_op_423:
+dec_ptr
+loop_start loop_op_439
+loop_op_425:
+dec_ptr
+loop_start loop_op_434
+loop_op_427:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_427
+loop_op_434:
+inc_ptr
+set_data 0
+loop_end loop_op_425
+loop_op_439:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_356
+loop_op_446:
+sub_ptr 4
+loop_start loop_op_460
+loop_op_451:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_451
+loop_op_460:
+inc_ptr
+loop_start loop_op_469
+loop_op_462:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_462
+loop_op_469:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_480
+loop_op_473:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_473
+loop_op_480:
+dec_ptr
+loop_start loop_op_495
+loop_op_482:
+sub_ptr 4
+inc_data
+add_ptr 4
+set_data 0
+loop_end loop_op_482
+loop_op_495:
+sub_ptr 3
+loop_start loop_op_507
+loop_op_499:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_499
+loop_op_507:
+add_ptr 2
+loop_start loop_op_517
+loop_op_510:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_510
+loop_op_517:
+inc_ptr
+add_data 5
+loop_start loop_op_537
+loop_op_524:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_524
+loop_op_537:
+sub_ptr 2
+loop_start loop_op_552
+loop_op_540:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_540
+loop_op_552:
+add_ptr 4
+loop_start loop_op_568
+loop_op_557:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_557
+loop_op_568:
+sub_ptr 3
+loop_start loop_op_582
+loop_op_572:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_572
+loop_op_582:
+add_ptr 3
+loop_start loop_op_595
+loop_op_586:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_586
+loop_op_595:
+dec_ptr
+loop_start loop_op_611
+loop_op_597:
+dec_ptr
+loop_start loop_op_606
+loop_op_599:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_599
+loop_op_606:
+inc_ptr
+set_data 0
+loop_end loop_op_597
+loop_op_611:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_708
+loop_op_618:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_642
+loop_op_630:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_630
+loop_op_642:
+add_ptr 4
+loop_start loop_op_658
+loop_op_647:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_647
+loop_op_658:
+sub_ptr 3
+loop_start loop_op_672
+loop_op_662:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_662
+loop_op_672:
+add_ptr 3
+loop_start loop_op_685
+loop_op_676:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_676
+loop_op_685:
+dec_ptr
+loop_start loop_op_701
+loop_op_687:
+dec_ptr
+loop_start loop_op_696
+loop_op_689:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_689
+loop_op_696:
+inc_ptr
+set_data 0
+loop_end loop_op_687
+loop_op_701:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_618
+loop_op_708:
+sub_ptr 4
+loop_start loop_op_722
+loop_op_713:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_713
+loop_op_722:
+inc_ptr
+loop_start loop_op_731
+loop_op_724:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_724
+loop_op_731:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_742
+loop_op_735:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_735
+loop_op_742:
+dec_ptr
+loop_start loop_op_758
+loop_op_744:
+sub_ptr 4
+add_data 2
+add_ptr 4
+set_data 0
+loop_end loop_op_744
+loop_op_758:
+sub_ptr 3
+loop_start loop_op_770
+loop_op_762:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_762
+loop_op_770:
+add_ptr 2
+loop_start loop_op_780
+loop_op_773:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_773
+loop_op_780:
+inc_ptr
+add_data 6
+loop_start loop_op_802
+loop_op_788:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_788
+loop_op_802:
+sub_ptr 2
+loop_start loop_op_817
+loop_op_805:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_805
+loop_op_817:
+add_ptr 4
+loop_start loop_op_833
+loop_op_822:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_822
+loop_op_833:
+sub_ptr 3
+loop_start loop_op_847
+loop_op_837:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_837
+loop_op_847:
+add_ptr 3
+loop_start loop_op_860
+loop_op_851:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_851
+loop_op_860:
+dec_ptr
+loop_start loop_op_876
+loop_op_862:
+dec_ptr
+loop_start loop_op_871
+loop_op_864:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_864
+loop_op_871:
+inc_ptr
+set_data 0
+loop_end loop_op_862
+loop_op_876:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_973
+loop_op_883:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_907
+loop_op_895:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_895
+loop_op_907:
+add_ptr 4
+loop_start loop_op_923
+loop_op_912:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_912
+loop_op_923:
+sub_ptr 3
+loop_start loop_op_937
+loop_op_927:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_927
+loop_op_937:
+add_ptr 3
+loop_start loop_op_950
+loop_op_941:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_941
+loop_op_950:
+dec_ptr
+loop_start loop_op_966
+loop_op_952:
+dec_ptr
+loop_start loop_op_961
+loop_op_954:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_954
+loop_op_961:
+inc_ptr
+set_data 0
+loop_end loop_op_952
+loop_op_966:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_883
+loop_op_973:
+sub_ptr 4
+loop_start loop_op_987
+loop_op_978:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_978
+loop_op_987:
+inc_ptr
+loop_start loop_op_996
+loop_op_989:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_989
+loop_op_996:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1007
+loop_op_1000:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_1000
+loop_op_1007:
+dec_ptr
+loop_start loop_op_1024
+loop_op_1009:
+sub_ptr 4
+add_data 3
+add_ptr 4
+set_data 0
+loop_end loop_op_1009
+loop_op_1024:
+sub_ptr 3
+loop_start loop_op_1036
+loop_op_1028:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_1028
+loop_op_1036:
+add_ptr 2
+loop_start loop_op_1046
+loop_op_1039:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_1039
+loop_op_1046:
+inc_ptr
+add_data 6
+loop_start loop_op_1068
+loop_op_1054:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1054
+loop_op_1068:
+dec_ptr
+add_data 2
+dec_ptr
+loop_start loop_op_1085
+loop_op_1073:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1073
+loop_op_1085:
+add_ptr 4
+loop_start loop_op_1101
+loop_op_1090:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1090
+loop_op_1101:
+sub_ptr 3
+loop_start loop_op_1115
+loop_op_1105:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1105
+loop_op_1115:
+add_ptr 3
+loop_start loop_op_1128
+loop_op_1119:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1119
+loop_op_1128:
+dec_ptr
+loop_start loop_op_1144
+loop_op_1130:
+dec_ptr
+loop_start loop_op_1139
+loop_op_1132:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1132
+loop_op_1139:
+inc_ptr
+set_data 0
+loop_end loop_op_1130
+loop_op_1144:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_1241
+loop_op_1151:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_1175
+loop_op_1163:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1163
+loop_op_1175:
+add_ptr 4
+loop_start loop_op_1191
+loop_op_1180:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1180
+loop_op_1191:
+sub_ptr 3
+loop_start loop_op_1205
+loop_op_1195:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1195
+loop_op_1205:
+add_ptr 3
+loop_start loop_op_1218
+loop_op_1209:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1209
+loop_op_1218:
+dec_ptr
+loop_start loop_op_1234
+loop_op_1220:
+dec_ptr
+loop_start loop_op_1229
+loop_op_1222:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1222
+loop_op_1229:
+inc_ptr
+set_data 0
+loop_end loop_op_1220
+loop_op_1234:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_1151
+loop_op_1241:
+sub_ptr 4
+loop_start loop_op_1255
+loop_op_1246:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_1246
+loop_op_1255:
+inc_ptr
+loop_start loop_op_1264
+loop_op_1257:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1257
+loop_op_1264:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1275
+loop_op_1268:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_1268
+loop_op_1275:
+dec_ptr
+loop_start loop_op_1293
+loop_op_1277:
+sub_ptr 4
+add_data 4
+add_ptr 4
+set_data 0
+loop_end loop_op_1277
+loop_op_1293:
+sub_ptr 3
+loop_start loop_op_1305
+loop_op_1297:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_1297
+loop_op_1305:
+add_ptr 2
+loop_start loop_op_1315
+loop_op_1308:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_1308
+loop_op_1315:
+inc_ptr
+add_data 5
+loop_start loop_op_1335
+loop_op_1322:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_1322
+loop_op_1335:
+dec_ptr
+inc_data
+dec_ptr
+loop_start loop_op_1351
+loop_op_1339:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1339
+loop_op_1351:
+add_ptr 4
+loop_start loop_op_1367
+loop_op_1356:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1356
+loop_op_1367:
+sub_ptr 3
+loop_start loop_op_1381
+loop_op_1371:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1371
+loop_op_1381:
+add_ptr 3
+loop_start loop_op_1394
+loop_op_1385:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1385
+loop_op_1394:
+dec_ptr
+loop_start loop_op_1410
+loop_op_1396:
+dec_ptr
+loop_start loop_op_1405
+loop_op_1398:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1398
+loop_op_1405:
+inc_ptr
+set_data 0
+loop_end loop_op_1396
+loop_op_1410:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_1507
+loop_op_1417:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_1441
+loop_op_1429:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1429
+loop_op_1441:
+add_ptr 4
+loop_start loop_op_1457
+loop_op_1446:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1446
+loop_op_1457:
+sub_ptr 3
+loop_start loop_op_1471
+loop_op_1461:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1461
+loop_op_1471:
+add_ptr 3
+loop_start loop_op_1484
+loop_op_1475:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1475
+loop_op_1484:
+dec_ptr
+loop_start loop_op_1500
+loop_op_1486:
+dec_ptr
+loop_start loop_op_1495
+loop_op_1488:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1488
+loop_op_1495:
+inc_ptr
+set_data 0
+loop_end loop_op_1486
+loop_op_1500:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_1417
+loop_op_1507:
+sub_ptr 4
+loop_start loop_op_1521
+loop_op_1512:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_1512
+loop_op_1521:
+inc_ptr
+loop_start loop_op_1530
+loop_op_1523:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1523
+loop_op_1530:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1541
+loop_op_1534:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_1534
+loop_op_1541:
+dec_ptr
+loop_start loop_op_1560
+loop_op_1543:
+sub_ptr 4
+add_data 5
+add_ptr 4
+set_data 0
+loop_end loop_op_1543
+loop_op_1560:
+sub_ptr 3
+loop_start loop_op_1572
+loop_op_1564:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_1564
+loop_op_1572:
+add_ptr 2
+loop_start loop_op_1582
+loop_op_1575:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_1575
+loop_op_1582:
+inc_ptr
+add_data 4
+loop_start loop_op_1603
+loop_op_1588:
+dec_ptr
+add_data 11
+inc_ptr
+dec_data
+loop_end loop_op_1588
+loop_op_1603:
+sub_ptr 2
+loop_start loop_op_1618
+loop_op_1606:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1606
+loop_op_1618:
+add_ptr 4
+loop_start loop_op_1634
+loop_op_1623:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1623
+loop_op_1634:
+sub_ptr 3
+loop_start loop_op_1648
+loop_op_1638:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1638
+loop_op_1648:
+add_ptr 3
+loop_start loop_op_1661
+loop_op_1652:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1652
+loop_op_1661:
+dec_ptr
+loop_start loop_op_1677
+loop_op_1663:
+dec_ptr
+loop_start loop_op_1672
+loop_op_1665:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1665
+loop_op_1672:
+inc_ptr
+set_data 0
+loop_end loop_op_1663
+loop_op_1677:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_1774
+loop_op_1684:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_1708
+loop_op_1696:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1696
+loop_op_1708:
+add_ptr 4
+loop_start loop_op_1724
+loop_op_1713:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1713
+loop_op_1724:
+sub_ptr 3
+loop_start loop_op_1738
+loop_op_1728:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1728
+loop_op_1738:
+add_ptr 3
+loop_start loop_op_1751
+loop_op_1742:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1742
+loop_op_1751:
+dec_ptr
+loop_start loop_op_1767
+loop_op_1753:
+dec_ptr
+loop_start loop_op_1762
+loop_op_1755:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1755
+loop_op_1762:
+inc_ptr
+set_data 0
+loop_end loop_op_1753
+loop_op_1767:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_1684
+loop_op_1774:
+sub_ptr 4
+loop_start loop_op_1788
+loop_op_1779:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_1779
+loop_op_1788:
+inc_ptr
+loop_start loop_op_1797
+loop_op_1790:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1790
+loop_op_1797:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1808
+loop_op_1801:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_1801
+loop_op_1808:
+dec_ptr
+loop_start loop_op_1828
+loop_op_1810:
+sub_ptr 4
+add_data 6
+add_ptr 4
+set_data 0
+loop_end loop_op_1810
+loop_op_1828:
+sub_ptr 3
+loop_start loop_op_1840
+loop_op_1832:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_1832
+loop_op_1840:
+add_ptr 2
+loop_start loop_op_1850
+loop_op_1843:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_1843
+loop_op_1850:
+inc_ptr
+add_data 7
+loop_start loop_op_1876
+loop_op_1859:
+dec_ptr
+add_data 13
+inc_ptr
+dec_data
+loop_end loop_op_1859
+loop_op_1876:
+sub_ptr 2
+loop_start loop_op_1891
+loop_op_1879:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1879
+loop_op_1891:
+add_ptr 4
+loop_start loop_op_1907
+loop_op_1896:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1896
+loop_op_1907:
+sub_ptr 3
+loop_start loop_op_1921
+loop_op_1911:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_1911
+loop_op_1921:
+add_ptr 3
+loop_start loop_op_1934
+loop_op_1925:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_1925
+loop_op_1934:
+dec_ptr
+loop_start loop_op_1950
+loop_op_1936:
+dec_ptr
+loop_start loop_op_1945
+loop_op_1938:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_1938
+loop_op_1945:
+inc_ptr
+set_data 0
+loop_end loop_op_1936
+loop_op_1950:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_2047
+loop_op_1957:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_1981
+loop_op_1969:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1969
+loop_op_1981:
+add_ptr 4
+loop_start loop_op_1997
+loop_op_1986:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_1986
+loop_op_1997:
+sub_ptr 3
+loop_start loop_op_2011
+loop_op_2001:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_2001
+loop_op_2011:
+add_ptr 3
+loop_start loop_op_2024
+loop_op_2015:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2015
+loop_op_2024:
+dec_ptr
+loop_start loop_op_2040
+loop_op_2026:
+dec_ptr
+loop_start loop_op_2035
+loop_op_2028:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2028
+loop_op_2035:
+inc_ptr
+set_data 0
+loop_end loop_op_2026
+loop_op_2040:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_1957
+loop_op_2047:
+sub_ptr 4
+loop_start loop_op_2061
+loop_op_2052:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_2052
+loop_op_2061:
+inc_ptr
+loop_start loop_op_2070
+loop_op_2063:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2063
+loop_op_2070:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_2081
+loop_op_2074:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_2074
+loop_op_2081:
+dec_ptr
+loop_start loop_op_2102
+loop_op_2083:
+sub_ptr 4
+add_data 7
+add_ptr 4
+set_data 0
+loop_end loop_op_2083
+loop_op_2102:
+sub_ptr 3
+loop_start loop_op_2114
+loop_op_2106:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_2106
+loop_op_2114:
+add_ptr 2
+loop_start loop_op_2124
+loop_op_2117:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_2117
+loop_op_2124:
+inc_ptr
+add_data 7
+loop_start loop_op_2150
+loop_op_2133:
+dec_ptr
+add_data 13
+inc_ptr
+dec_data
+loop_end loop_op_2133
+loop_op_2150:
+dec_ptr
+add_data 2
+dec_ptr
+loop_start loop_op_2167
+loop_op_2155:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_2155
+loop_op_2167:
+add_ptr 4
+loop_start loop_op_2183
+loop_op_2172:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_2172
+loop_op_2183:
+sub_ptr 3
+loop_start loop_op_2197
+loop_op_2187:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_2187
+loop_op_2197:
+add_ptr 3
+loop_start loop_op_2210
+loop_op_2201:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2201
+loop_op_2210:
+dec_ptr
+loop_start loop_op_2226
+loop_op_2212:
+dec_ptr
+loop_start loop_op_2221
+loop_op_2214:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2214
+loop_op_2221:
+inc_ptr
+set_data 0
+loop_end loop_op_2212
+loop_op_2226:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_2323
+loop_op_2233:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_2257
+loop_op_2245:
+dec_data
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_2245
+loop_op_2257:
+add_ptr 4
+loop_start loop_op_2273
+loop_op_2262:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_2262
+loop_op_2273:
+sub_ptr 3
+loop_start loop_op_2287
+loop_op_2277:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_2277
+loop_op_2287:
+add_ptr 3
+loop_start loop_op_2300
+loop_op_2291:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2291
+loop_op_2300:
+dec_ptr
+loop_start loop_op_2316
+loop_op_2302:
+dec_ptr
+loop_start loop_op_2311
+loop_op_2304:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2304
+loop_op_2311:
+inc_ptr
+set_data 0
+loop_end loop_op_2302
+loop_op_2316:
+dec_ptr
+set_data 0
+add_ptr 2
+loop_end loop_op_2233
+loop_op_2323:
+sub_ptr 4
+loop_start loop_op_2337
+loop_op_2328:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_2328
+loop_op_2337:
+inc_ptr
+loop_start loop_op_2346
+loop_op_2339:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2339
+loop_op_2346:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_2357
+loop_op_2350:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_2350
+loop_op_2357:
+dec_ptr
+loop_start loop_op_2379
+loop_op_2359:
+sub_ptr 4
+add_data 8
+add_ptr 4
+set_data 0
+loop_end loop_op_2359
+loop_op_2379:
+sub_ptr 4
+loop_start loop_op_2394
+loop_op_2384:
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+loop_end loop_op_2384
+loop_op_2394:
+add_ptr 3
+loop_start loop_op_2407
+loop_op_2398:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2398
+loop_op_2407:
+dec_ptr
+loop_start loop_op_2627
+loop_op_2409:
+sub_ptr 3
+loop_start loop_op_2435
+loop_op_2413:
+dec_data
+add_ptr 9
+inc_data
+dec_ptr
+inc_data
+sub_ptr 8
+loop_end loop_op_2413
+loop_op_2435:
+add_ptr 8
+loop_start loop_op_2463
+loop_op_2444:
+dec_data
+sub_ptr 8
+inc_data
+add_ptr 8
+loop_end loop_op_2444
+loop_op_2463:
+sub_ptr 7
+loop_start loop_op_2493
+loop_op_2471:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 2
+inc_data
+sub_ptr 7
+loop_end loop_op_2471
+loop_op_2493:
+add_ptr 7
+loop_start loop_op_2518
+loop_op_2501:
+dec_data
+sub_ptr 7
+inc_data
+add_ptr 7
+loop_end loop_op_2501
+loop_op_2518:
+inc_ptr
+loop_start loop_op_2572
+loop_op_2520:
+dec_ptr
+loop_start loop_op_2535
+loop_op_2522:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_2522
+loop_op_2535:
+inc_ptr
+loop_start loop_op_2550
+loop_op_2537:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_2537
+loop_op_2550:
+inc_ptr
+loop_start loop_op_2565
+loop_op_2552:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_2552
+loop_op_2565:
+add_ptr 3
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_2520
+loop_op_2572:
+add_ptr 2
+set_data 0
+dec_ptr
+loop_start loop_op_2584
+loop_op_2579:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2579
+loop_op_2584:
+sub_ptr 2
+loop_start loop_op_2608
+loop_op_2587:
+loop_start loop_op_2601
+loop_op_2588:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_2588
+loop_op_2601:
+sub_ptr 5
+dec_data
+loop_end loop_op_2587
+loop_op_2608:
+sub_ptr 8
+inc_data
+inc_ptr
+set_data 0
+add_ptr 2
+set_data 0
+loop_end loop_op_2409
+loop_op_2627:
+dec_ptr
+input
+loop_start loop_op_2638
+loop_op_2630:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_2630
+loop_op_2638:
+add_ptr 2
+loop_start loop_op_2648
+loop_op_2641:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_2641
+loop_op_2648:
+inc_ptr
+add_data 4
+loop_start loop_op_2666
+loop_op_2654:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_2654
+loop_op_2666:
+dec_ptr
+inc_data
+dec_ptr
+loop_start loop_op_2682
+loop_op_2670:
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 4
+loop_end loop_op_2670
+loop_op_2682:
+add_ptr 4
+loop_start loop_op_2698
+loop_op_2687:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_2687
+loop_op_2698:
+sub_ptr 3
+loop_start loop_op_2712
+loop_op_2702:
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+loop_end loop_op_2702
+loop_op_2712:
+add_ptr 3
+loop_start loop_op_2725
+loop_op_2716:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2716
+loop_op_2725:
+sub_ptr 2
+loop_start loop_op_2740
+loop_op_2728:
+inc_ptr
+loop_start loop_op_2735
+loop_op_2730:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2730
+loop_op_2735:
+dec_ptr
+set_data 0
+loop_end loop_op_2728
+loop_op_2740:
+inc_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_2834
+loop_op_2746:
+set_data 0
+sub_ptr 4
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_start loop_op_2770
+loop_op_2758:
+dec_data
+add_ptr 2
+inc_data
+add_ptr 2
+inc_data
+sub_ptr 4
+loop_end loop_op_2758
+loop_op_2770:
+add_ptr 4
+loop_start loop_op_2786
+loop_op_2775:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_2775
+loop_op_2786:
+sub_ptr 3
+loop_start loop_op_2800
+loop_op_2790:
+dec_data
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+loop_end loop_op_2790
+loop_op_2800:
+add_ptr 3
+loop_start loop_op_2813
+loop_op_2804:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2804
+loop_op_2813:
+sub_ptr 2
+loop_start loop_op_2828
+loop_op_2816:
+inc_ptr
+loop_start loop_op_2823
+loop_op_2818:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2818
+loop_op_2823:
+dec_ptr
+set_data 0
+loop_end loop_op_2816
+loop_op_2828:
+inc_ptr
+set_data 0
+inc_ptr
+loop_end loop_op_2746
+loop_op_2834:
+sub_ptr 4
+loop_start loop_op_2846
+loop_op_2839:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2839
+loop_op_2846:
+inc_ptr
+loop_start loop_op_2853
+loop_op_2848:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2848
+loop_op_2853:
+inc_ptr
+loop_end loop_op_230
+loop_op_2855:
+sub_ptr 5
+set_data 0
+loop_start loop_op_2886
+loop_op_2864:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_2864
+loop_op_2886:
+add_ptr 3
+loop_start loop_op_2899
+loop_op_2890:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_2890
+loop_op_2899:
+add_ptr 6
+loop_start loop_op_2944
+loop_op_2906:
+dec_ptr
+loop_start loop_op_2921
+loop_op_2908:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_2908
+loop_op_2921:
+inc_ptr
+loop_start loop_op_2936
+loop_op_2923:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_2923
+loop_op_2936:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_2906
+loop_op_2944:
+add_ptr 2
+loop_start loop_op_6376
+loop_op_2947:
+loop_start loop_op_2956
+loop_op_2948:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_2948
+loop_op_2956:
+sub_ptr 2
+loop_start loop_op_2966
+loop_op_2959:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2959
+loop_op_2966:
+inc_ptr
+loop_start loop_op_2981
+loop_op_2968:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_2980
+loop_op_2973:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_2973
+loop_op_2980:
+loop_end loop_op_2968
+loop_op_2981:
+dec_ptr
+loop_start loop_op_3318
+loop_op_2983:
+set_data 0
+dec_ptr
+loop_start loop_op_2996
+loop_op_2988:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_2988
+loop_op_2996:
+add_ptr 2
+loop_start loop_op_3006
+loop_op_2999:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_2999
+loop_op_3006:
+sub_ptr 2
+loop_start loop_op_3046
+loop_op_3009:
+loop_start loop_op_3023
+loop_op_3010:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3010
+loop_op_3023:
+inc_ptr
+loop_start loop_op_3038
+loop_op_3025:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3025
+loop_op_3038:
+sub_ptr 6
+dec_data
+loop_end loop_op_3009
+loop_op_3046:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_3088
+loop_op_3067:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_3067
+loop_op_3088:
+sub_ptr 10
+loop_start loop_op_3123
+loop_op_3099:
+dec_data
+add_ptr 10
+inc_data
+dec_ptr
+inc_data
+sub_ptr 9
+loop_end loop_op_3099
+loop_op_3123:
+add_ptr 9
+loop_start loop_op_3154
+loop_op_3133:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_3133
+loop_op_3154:
+inc_ptr
+loop_start loop_op_3194
+loop_op_3156:
+dec_ptr
+loop_start loop_op_3171
+loop_op_3158:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3158
+loop_op_3171:
+inc_ptr
+loop_start loop_op_3186
+loop_op_3173:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3173
+loop_op_3186:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3156
+loop_op_3194:
+add_ptr 3
+inc_data
+sub_ptr 4
+loop_start loop_op_3224
+loop_op_3203:
+loop_start loop_op_3217
+loop_op_3204:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3204
+loop_op_3217:
+sub_ptr 5
+dec_data
+loop_end loop_op_3203
+loop_op_3224:
+sub_ptr 8
+inc_data
+loop_start loop_op_3256
+loop_op_3234:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_3234
+loop_op_3256:
+add_ptr 3
+loop_start loop_op_3269
+loop_op_3260:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_3260
+loop_op_3269:
+add_ptr 6
+loop_start loop_op_3314
+loop_op_3276:
+dec_ptr
+loop_start loop_op_3291
+loop_op_3278:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3278
+loop_op_3291:
+inc_ptr
+loop_start loop_op_3306
+loop_op_3293:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3293
+loop_op_3306:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3276
+loop_op_3314:
+set_data 0
+loop_end loop_op_2983
+loop_op_3318:
+add_ptr 2
+loop_start loop_op_3329
+loop_op_3321:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_3321
+loop_op_3329:
+sub_ptr 2
+loop_start loop_op_3339
+loop_op_3332:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_3332
+loop_op_3339:
+inc_ptr
+loop_start loop_op_3357
+loop_op_3341:
+dec_data
+loop_start loop_op_3356
+loop_op_3343:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_3355
+loop_op_3348:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_3348
+loop_op_3355:
+loop_end loop_op_3343
+loop_op_3356:
+loop_end loop_op_3341
+loop_op_3357:
+dec_ptr
+loop_start loop_op_3694
+loop_op_3359:
+set_data 0
+dec_ptr
+loop_start loop_op_3372
+loop_op_3364:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_3364
+loop_op_3372:
+add_ptr 2
+loop_start loop_op_3382
+loop_op_3375:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_3375
+loop_op_3382:
+sub_ptr 2
+loop_start loop_op_3422
+loop_op_3385:
+loop_start loop_op_3399
+loop_op_3386:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3386
+loop_op_3399:
+inc_ptr
+loop_start loop_op_3414
+loop_op_3401:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3401
+loop_op_3414:
+sub_ptr 6
+dec_data
+loop_end loop_op_3385
+loop_op_3422:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_3464
+loop_op_3443:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_3443
+loop_op_3464:
+sub_ptr 10
+loop_start loop_op_3499
+loop_op_3475:
+dec_data
+add_ptr 10
+inc_data
+dec_ptr
+inc_data
+sub_ptr 9
+loop_end loop_op_3475
+loop_op_3499:
+add_ptr 9
+loop_start loop_op_3530
+loop_op_3509:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_3509
+loop_op_3530:
+inc_ptr
+loop_start loop_op_3570
+loop_op_3532:
+dec_ptr
+loop_start loop_op_3547
+loop_op_3534:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3534
+loop_op_3547:
+inc_ptr
+loop_start loop_op_3562
+loop_op_3549:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3549
+loop_op_3562:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3532
+loop_op_3570:
+add_ptr 3
+dec_data
+sub_ptr 4
+loop_start loop_op_3600
+loop_op_3579:
+loop_start loop_op_3593
+loop_op_3580:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3580
+loop_op_3593:
+sub_ptr 5
+dec_data
+loop_end loop_op_3579
+loop_op_3600:
+sub_ptr 8
+inc_data
+loop_start loop_op_3632
+loop_op_3610:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_3610
+loop_op_3632:
+add_ptr 3
+loop_start loop_op_3645
+loop_op_3636:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_3636
+loop_op_3645:
+add_ptr 6
+loop_start loop_op_3690
+loop_op_3652:
+dec_ptr
+loop_start loop_op_3667
+loop_op_3654:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3654
+loop_op_3667:
+inc_ptr
+loop_start loop_op_3682
+loop_op_3669:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3669
+loop_op_3682:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3652
+loop_op_3690:
+set_data 0
+loop_end loop_op_3359
+loop_op_3694:
+add_ptr 2
+loop_start loop_op_3705
+loop_op_3697:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_3697
+loop_op_3705:
+sub_ptr 2
+loop_start loop_op_3715
+loop_op_3708:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_3708
+loop_op_3715:
+inc_ptr
+loop_start loop_op_3736
+loop_op_3717:
+dec_data
+loop_start loop_op_3735
+loop_op_3719:
+dec_data
+loop_start loop_op_3734
+loop_op_3721:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_3733
+loop_op_3726:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_3726
+loop_op_3733:
+loop_end loop_op_3721
+loop_op_3734:
+loop_end loop_op_3719
+loop_op_3735:
+loop_end loop_op_3717
+loop_op_3736:
+dec_ptr
+loop_start loop_op_3941
+loop_op_3738:
+set_data 0
+dec_ptr
+loop_start loop_op_3751
+loop_op_3743:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_3743
+loop_op_3751:
+add_ptr 2
+loop_start loop_op_3761
+loop_op_3754:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_3754
+loop_op_3761:
+sub_ptr 2
+loop_start loop_op_3801
+loop_op_3764:
+loop_start loop_op_3778
+loop_op_3765:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3765
+loop_op_3778:
+inc_ptr
+loop_start loop_op_3793
+loop_op_3780:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_3780
+loop_op_3793:
+sub_ptr 6
+dec_data
+loop_end loop_op_3764
+loop_op_3801:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_3843
+loop_op_3822:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_3822
+loop_op_3843:
+sub_ptr 10
+dec_data
+inc_ptr
+inc_data
+loop_start loop_op_3879
+loop_op_3857:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_3857
+loop_op_3879:
+add_ptr 3
+loop_start loop_op_3892
+loop_op_3883:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_3883
+loop_op_3892:
+add_ptr 6
+loop_start loop_op_3937
+loop_op_3899:
+dec_ptr
+loop_start loop_op_3914
+loop_op_3901:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3901
+loop_op_3914:
+inc_ptr
+loop_start loop_op_3929
+loop_op_3916:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_3916
+loop_op_3929:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3899
+loop_op_3937:
+set_data 0
+loop_end loop_op_3738
+loop_op_3941:
+add_ptr 2
+loop_start loop_op_3952
+loop_op_3944:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_3944
+loop_op_3952:
+sub_ptr 2
+loop_start loop_op_3962
+loop_op_3955:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_3955
+loop_op_3962:
+inc_ptr
+loop_start loop_op_3986
+loop_op_3964:
+dec_data
+loop_start loop_op_3985
+loop_op_3966:
+dec_data
+loop_start loop_op_3984
+loop_op_3968:
+dec_data
+loop_start loop_op_3983
+loop_op_3970:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_3982
+loop_op_3975:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_3975
+loop_op_3982:
+loop_end loop_op_3970
+loop_op_3983:
+loop_end loop_op_3968
+loop_op_3984:
+loop_end loop_op_3966
+loop_op_3985:
+loop_end loop_op_3964
+loop_op_3986:
+dec_ptr
+loop_start loop_op_4191
+loop_op_3988:
+set_data 0
+dec_ptr
+loop_start loop_op_4001
+loop_op_3993:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_3993
+loop_op_4001:
+add_ptr 2
+loop_start loop_op_4011
+loop_op_4004:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_4004
+loop_op_4011:
+sub_ptr 2
+loop_start loop_op_4051
+loop_op_4014:
+loop_start loop_op_4028
+loop_op_4015:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4015
+loop_op_4028:
+inc_ptr
+loop_start loop_op_4043
+loop_op_4030:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4030
+loop_op_4043:
+sub_ptr 6
+dec_data
+loop_end loop_op_4014
+loop_op_4051:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_4093
+loop_op_4072:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_4072
+loop_op_4093:
+sub_ptr 10
+inc_data
+inc_ptr
+inc_data
+loop_start loop_op_4129
+loop_op_4107:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_4107
+loop_op_4129:
+add_ptr 3
+loop_start loop_op_4142
+loop_op_4133:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_4133
+loop_op_4142:
+add_ptr 6
+loop_start loop_op_4187
+loop_op_4149:
+dec_ptr
+loop_start loop_op_4164
+loop_op_4151:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4151
+loop_op_4164:
+inc_ptr
+loop_start loop_op_4179
+loop_op_4166:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4166
+loop_op_4179:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4149
+loop_op_4187:
+set_data 0
+loop_end loop_op_3988
+loop_op_4191:
+add_ptr 2
+loop_start loop_op_4202
+loop_op_4194:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_4194
+loop_op_4202:
+sub_ptr 2
+loop_start loop_op_4212
+loop_op_4205:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_4205
+loop_op_4212:
+inc_ptr
+loop_start loop_op_4239
+loop_op_4214:
+dec_data
+loop_start loop_op_4238
+loop_op_4216:
+dec_data
+loop_start loop_op_4237
+loop_op_4218:
+dec_data
+loop_start loop_op_4236
+loop_op_4220:
+dec_data
+loop_start loop_op_4235
+loop_op_4222:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_4234
+loop_op_4227:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_4227
+loop_op_4234:
+loop_end loop_op_4222
+loop_op_4235:
+loop_end loop_op_4220
+loop_op_4236:
+loop_end loop_op_4218
+loop_op_4237:
+loop_end loop_op_4216
+loop_op_4238:
+loop_end loop_op_4214
+loop_op_4239:
+dec_ptr
+loop_start loop_op_4576
+loop_op_4241:
+set_data 0
+dec_ptr
+loop_start loop_op_4254
+loop_op_4246:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_4246
+loop_op_4254:
+add_ptr 2
+loop_start loop_op_4264
+loop_op_4257:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_4257
+loop_op_4264:
+sub_ptr 2
+loop_start loop_op_4304
+loop_op_4267:
+loop_start loop_op_4281
+loop_op_4268:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4268
+loop_op_4281:
+inc_ptr
+loop_start loop_op_4296
+loop_op_4283:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4283
+loop_op_4296:
+sub_ptr 6
+dec_data
+loop_end loop_op_4267
+loop_op_4304:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_4346
+loop_op_4325:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_4325
+loop_op_4346:
+sub_ptr 10
+loop_start loop_op_4381
+loop_op_4357:
+dec_data
+add_ptr 10
+inc_data
+dec_ptr
+inc_data
+sub_ptr 9
+loop_end loop_op_4357
+loop_op_4381:
+add_ptr 9
+loop_start loop_op_4412
+loop_op_4391:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_4391
+loop_op_4412:
+inc_ptr
+loop_start loop_op_4452
+loop_op_4414:
+dec_ptr
+loop_start loop_op_4429
+loop_op_4416:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4416
+loop_op_4429:
+inc_ptr
+loop_start loop_op_4444
+loop_op_4431:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4431
+loop_op_4444:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4414
+loop_op_4452:
+add_ptr 3
+output
+sub_ptr 4
+loop_start loop_op_4482
+loop_op_4461:
+loop_start loop_op_4475
+loop_op_4462:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4462
+loop_op_4475:
+sub_ptr 5
+dec_data
+loop_end loop_op_4461
+loop_op_4482:
+sub_ptr 8
+inc_data
+loop_start loop_op_4514
+loop_op_4492:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_4492
+loop_op_4514:
+add_ptr 3
+loop_start loop_op_4527
+loop_op_4518:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_4518
+loop_op_4527:
+add_ptr 6
+loop_start loop_op_4572
+loop_op_4534:
+dec_ptr
+loop_start loop_op_4549
+loop_op_4536:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4536
+loop_op_4549:
+inc_ptr
+loop_start loop_op_4564
+loop_op_4551:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4551
+loop_op_4564:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4534
+loop_op_4572:
+set_data 0
+loop_end loop_op_4241
+loop_op_4576:
+add_ptr 2
+loop_start loop_op_4587
+loop_op_4579:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_4579
+loop_op_4587:
+sub_ptr 2
+loop_start loop_op_4597
+loop_op_4590:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_4590
+loop_op_4597:
+inc_ptr
+loop_start loop_op_4627
+loop_op_4599:
+dec_data
+loop_start loop_op_4626
+loop_op_4601:
+dec_data
+loop_start loop_op_4625
+loop_op_4603:
+dec_data
+loop_start loop_op_4624
+loop_op_4605:
+dec_data
+loop_start loop_op_4623
+loop_op_4607:
+dec_data
+loop_start loop_op_4622
+loop_op_4609:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_4621
+loop_op_4614:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_4614
+loop_op_4621:
+loop_end loop_op_4609
+loop_op_4622:
+loop_end loop_op_4607
+loop_op_4623:
+loop_end loop_op_4605
+loop_op_4624:
+loop_end loop_op_4603
+loop_op_4625:
+loop_end loop_op_4601
+loop_op_4626:
+loop_end loop_op_4599
+loop_op_4627:
+dec_ptr
+loop_start loop_op_4964
+loop_op_4629:
+set_data 0
+dec_ptr
+loop_start loop_op_4642
+loop_op_4634:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_4634
+loop_op_4642:
+add_ptr 2
+loop_start loop_op_4652
+loop_op_4645:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_4645
+loop_op_4652:
+sub_ptr 2
+loop_start loop_op_4692
+loop_op_4655:
+loop_start loop_op_4669
+loop_op_4656:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4656
+loop_op_4669:
+inc_ptr
+loop_start loop_op_4684
+loop_op_4671:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4671
+loop_op_4684:
+sub_ptr 6
+dec_data
+loop_end loop_op_4655
+loop_op_4692:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_4734
+loop_op_4713:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_4713
+loop_op_4734:
+sub_ptr 10
+loop_start loop_op_4769
+loop_op_4745:
+dec_data
+add_ptr 10
+inc_data
+dec_ptr
+inc_data
+sub_ptr 9
+loop_end loop_op_4745
+loop_op_4769:
+add_ptr 9
+loop_start loop_op_4800
+loop_op_4779:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_4779
+loop_op_4800:
+inc_ptr
+loop_start loop_op_4840
+loop_op_4802:
+dec_ptr
+loop_start loop_op_4817
+loop_op_4804:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4804
+loop_op_4817:
+inc_ptr
+loop_start loop_op_4832
+loop_op_4819:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4819
+loop_op_4832:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4802
+loop_op_4840:
+add_ptr 3
+input
+sub_ptr 4
+loop_start loop_op_4870
+loop_op_4849:
+loop_start loop_op_4863
+loop_op_4850:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_4850
+loop_op_4863:
+sub_ptr 5
+dec_data
+loop_end loop_op_4849
+loop_op_4870:
+sub_ptr 8
+inc_data
+loop_start loop_op_4902
+loop_op_4880:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_4880
+loop_op_4902:
+add_ptr 3
+loop_start loop_op_4915
+loop_op_4906:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_4906
+loop_op_4915:
+add_ptr 6
+loop_start loop_op_4960
+loop_op_4922:
+dec_ptr
+loop_start loop_op_4937
+loop_op_4924:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4924
+loop_op_4937:
+inc_ptr
+loop_start loop_op_4952
+loop_op_4939:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_4939
+loop_op_4952:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4922
+loop_op_4960:
+set_data 0
+loop_end loop_op_4629
+loop_op_4964:
+add_ptr 2
+loop_start loop_op_4975
+loop_op_4967:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_4967
+loop_op_4975:
+sub_ptr 2
+loop_start loop_op_4985
+loop_op_4978:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_4978
+loop_op_4985:
+inc_ptr
+loop_start loop_op_5018
+loop_op_4987:
+dec_data
+loop_start loop_op_5017
+loop_op_4989:
+dec_data
+loop_start loop_op_5016
+loop_op_4991:
+dec_data
+loop_start loop_op_5015
+loop_op_4993:
+dec_data
+loop_start loop_op_5014
+loop_op_4995:
+dec_data
+loop_start loop_op_5013
+loop_op_4997:
+dec_data
+loop_start loop_op_5012
+loop_op_4999:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_5011
+loop_op_5004:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_5004
+loop_op_5011:
+loop_end loop_op_4999
+loop_op_5012:
+loop_end loop_op_4997
+loop_op_5013:
+loop_end loop_op_4995
+loop_op_5014:
+loop_end loop_op_4993
+loop_op_5015:
+loop_end loop_op_4991
+loop_op_5016:
+loop_end loop_op_4989
+loop_op_5017:
+loop_end loop_op_4987
+loop_op_5018:
+dec_ptr
+loop_start loop_op_5667
+loop_op_5020:
+set_data 0
+dec_ptr
+loop_start loop_op_5033
+loop_op_5025:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_5025
+loop_op_5033:
+add_ptr 2
+loop_start loop_op_5043
+loop_op_5036:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5036
+loop_op_5043:
+sub_ptr 2
+loop_start loop_op_5083
+loop_op_5046:
+loop_start loop_op_5060
+loop_op_5047:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5047
+loop_op_5060:
+inc_ptr
+loop_start loop_op_5075
+loop_op_5062:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5062
+loop_op_5075:
+sub_ptr 6
+dec_data
+loop_end loop_op_5046
+loop_op_5083:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_5125
+loop_op_5104:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_5104
+loop_op_5125:
+sub_ptr 10
+loop_start loop_op_5160
+loop_op_5136:
+dec_data
+add_ptr 10
+inc_data
+dec_ptr
+inc_data
+sub_ptr 9
+loop_end loop_op_5136
+loop_op_5160:
+add_ptr 9
+loop_start loop_op_5191
+loop_op_5170:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_5170
+loop_op_5191:
+inc_ptr
+loop_start loop_op_5231
+loop_op_5193:
+dec_ptr
+loop_start loop_op_5208
+loop_op_5195:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5195
+loop_op_5208:
+inc_ptr
+loop_start loop_op_5223
+loop_op_5210:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5210
+loop_op_5223:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_5193
+loop_op_5231:
+add_ptr 3
+loop_start loop_op_5245
+loop_op_5235:
+dec_data
+sub_ptr 3
+inc_data
+inc_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_5235
+loop_op_5245:
+sub_ptr 2
+loop_start loop_op_5255
+loop_op_5248:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_5248
+loop_op_5255:
+sub_ptr 2
+loop_start loop_op_5295
+loop_op_5258:
+loop_start loop_op_5272
+loop_op_5259:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5259
+loop_op_5272:
+inc_ptr
+loop_start loop_op_5287
+loop_op_5274:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5274
+loop_op_5287:
+sub_ptr 6
+dec_data
+loop_end loop_op_5258
+loop_op_5295:
+inc_ptr
+loop_start loop_op_5312
+loop_op_5297:
+dec_data
+sub_ptr 6
+inc_data
+add_ptr 6
+loop_end loop_op_5297
+loop_op_5312:
+inc_ptr
+inc_data
+sub_ptr 7
+loop_start loop_op_5341
+loop_op_5322:
+add_ptr 7
+dec_data
+sub_ptr 7
+set_data 0
+loop_end loop_op_5322
+loop_op_5341:
+sub_ptr 3
+loop_start loop_op_5367
+loop_op_5345:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_5345
+loop_op_5367:
+add_ptr 3
+loop_start loop_op_5380
+loop_op_5371:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_5371
+loop_op_5380:
+add_ptr 6
+loop_start loop_op_5439
+loop_op_5387:
+dec_ptr
+loop_start loop_op_5402
+loop_op_5389:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5389
+loop_op_5402:
+inc_ptr
+loop_start loop_op_5417
+loop_op_5404:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5404
+loop_op_5417:
+inc_ptr
+loop_start loop_op_5432
+loop_op_5419:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5419
+loop_op_5432:
+add_ptr 3
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_5387
+loop_op_5439:
+inc_ptr
+loop_start loop_op_5640
+loop_op_5441:
+set_data 0
+dec_ptr
+inc_data
+loop_start loop_op_5635
+loop_op_5447:
+dec_ptr
+loop_start loop_op_5462
+loop_op_5449:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5449
+loop_op_5462:
+inc_ptr
+loop_start loop_op_5477
+loop_op_5464:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5464
+loop_op_5477:
+add_ptr 4
+inc_data
+add_ptr 3
+loop_start loop_op_5496
+loop_op_5486:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 3
+inc_data
+inc_ptr
+loop_end loop_op_5486
+loop_op_5496:
+dec_ptr
+loop_start loop_op_5503
+loop_op_5498:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5498
+loop_op_5503:
+add_ptr 3
+loop_start loop_op_5546
+loop_op_5507:
+dec_data
+loop_start loop_op_5545
+loop_op_5509:
+dec_data
+loop_start loop_op_5544
+loop_op_5511:
+dec_data
+loop_start loop_op_5543
+loop_op_5513:
+dec_data
+loop_start loop_op_5542
+loop_op_5515:
+dec_data
+loop_start loop_op_5541
+loop_op_5517:
+dec_data
+loop_start loop_op_5540
+loop_op_5519:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_start loop_op_5539
+loop_op_5528:
+sub_ptr 3
+dec_data
+add_ptr 3
+set_data 0
+loop_end loop_op_5528
+loop_op_5539:
+loop_end loop_op_5519
+loop_op_5540:
+loop_end loop_op_5517
+loop_op_5541:
+loop_end loop_op_5515
+loop_op_5542:
+loop_end loop_op_5513
+loop_op_5543:
+loop_end loop_op_5511
+loop_op_5544:
+loop_end loop_op_5509
+loop_op_5545:
+loop_end loop_op_5507
+loop_op_5546:
+sub_ptr 3
+loop_start loop_op_5557
+loop_op_5550:
+dec_ptr
+inc_data
+inc_ptr
+set_data 0
+loop_end loop_op_5550
+loop_op_5557:
+inc_ptr
+loop_start loop_op_5569
+loop_op_5559:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 3
+inc_data
+inc_ptr
+loop_end loop_op_5559
+loop_op_5569:
+dec_ptr
+loop_start loop_op_5576
+loop_op_5571:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5571
+loop_op_5576:
+add_ptr 3
+loop_start loop_op_5622
+loop_op_5580:
+dec_data
+loop_start loop_op_5621
+loop_op_5582:
+dec_data
+loop_start loop_op_5620
+loop_op_5584:
+dec_data
+loop_start loop_op_5619
+loop_op_5586:
+dec_data
+loop_start loop_op_5618
+loop_op_5588:
+dec_data
+loop_start loop_op_5617
+loop_op_5590:
+dec_data
+loop_start loop_op_5616
+loop_op_5592:
+dec_data
+loop_start loop_op_5615
+loop_op_5594:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_start loop_op_5614
+loop_op_5603:
+sub_ptr 3
+dec_data
+add_ptr 3
+set_data 0
+loop_end loop_op_5603
+loop_op_5614:
+loop_end loop_op_5594
+loop_op_5615:
+loop_end loop_op_5592
+loop_op_5616:
+loop_end loop_op_5590
+loop_op_5617:
+loop_end loop_op_5588
+loop_op_5618:
+loop_end loop_op_5586
+loop_op_5619:
+loop_end loop_op_5584
+loop_op_5620:
+loop_end loop_op_5582
+loop_op_5621:
+loop_end loop_op_5580
+loop_op_5622:
+sub_ptr 3
+loop_start loop_op_5633
+loop_op_5626:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_5626
+loop_op_5633:
+dec_ptr
+loop_end loop_op_5447
+loop_op_5635:
+inc_ptr
+set_data 0
+loop_end loop_op_5441
+loop_op_5640:
+sub_ptr 2
+loop_start loop_op_5656
+loop_op_5643:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5643
+loop_op_5656:
+add_ptr 5
+inc_data
+inc_ptr
+set_data 0
+loop_end loop_op_5020
+loop_op_5667:
+add_ptr 2
+loop_start loop_op_5678
+loop_op_5670:
+dec_data
+dec_ptr
+inc_data
+dec_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_5670
+loop_op_5678:
+sub_ptr 2
+loop_start loop_op_5688
+loop_op_5681:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_5681
+loop_op_5688:
+inc_ptr
+loop_start loop_op_5724
+loop_op_5690:
+dec_data
+loop_start loop_op_5723
+loop_op_5692:
+dec_data
+loop_start loop_op_5722
+loop_op_5694:
+dec_data
+loop_start loop_op_5721
+loop_op_5696:
+dec_data
+loop_start loop_op_5720
+loop_op_5698:
+dec_data
+loop_start loop_op_5719
+loop_op_5700:
+dec_data
+loop_start loop_op_5718
+loop_op_5702:
+dec_data
+loop_start loop_op_5717
+loop_op_5704:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_5716
+loop_op_5709:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_5709
+loop_op_5716:
+loop_end loop_op_5704
+loop_op_5717:
+loop_end loop_op_5702
+loop_op_5718:
+loop_end loop_op_5700
+loop_op_5719:
+loop_end loop_op_5698
+loop_op_5720:
+loop_end loop_op_5696
+loop_op_5721:
+loop_end loop_op_5694
+loop_op_5722:
+loop_end loop_op_5692
+loop_op_5723:
+loop_end loop_op_5690
+loop_op_5724:
+dec_ptr
+loop_start loop_op_6373
+loop_op_5726:
+set_data 0
+dec_ptr
+loop_start loop_op_5742
+loop_op_5734:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+loop_end loop_op_5734
+loop_op_5742:
+add_ptr 2
+loop_start loop_op_5752
+loop_op_5745:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5745
+loop_op_5752:
+sub_ptr 2
+loop_start loop_op_5792
+loop_op_5755:
+loop_start loop_op_5769
+loop_op_5756:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5756
+loop_op_5769:
+inc_ptr
+loop_start loop_op_5784
+loop_op_5771:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5771
+loop_op_5784:
+sub_ptr 6
+dec_data
+loop_end loop_op_5755
+loop_op_5792:
+sub_ptr 8
+set_data 0
+add_ptr 9
+loop_start loop_op_5834
+loop_op_5813:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_5813
+loop_op_5834:
+sub_ptr 10
+loop_start loop_op_5869
+loop_op_5845:
+dec_data
+add_ptr 10
+inc_data
+dec_ptr
+inc_data
+sub_ptr 9
+loop_end loop_op_5845
+loop_op_5869:
+add_ptr 9
+loop_start loop_op_5900
+loop_op_5879:
+dec_data
+sub_ptr 9
+inc_data
+add_ptr 9
+loop_end loop_op_5879
+loop_op_5900:
+inc_ptr
+loop_start loop_op_5940
+loop_op_5902:
+dec_ptr
+loop_start loop_op_5917
+loop_op_5904:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5904
+loop_op_5917:
+inc_ptr
+loop_start loop_op_5932
+loop_op_5919:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_5919
+loop_op_5932:
+add_ptr 4
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_5902
+loop_op_5940:
+add_ptr 3
+loop_start loop_op_5954
+loop_op_5944:
+dec_data
+sub_ptr 3
+inc_data
+inc_ptr
+inc_data
+add_ptr 2
+loop_end loop_op_5944
+loop_op_5954:
+sub_ptr 2
+loop_start loop_op_5964
+loop_op_5957:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_5957
+loop_op_5964:
+sub_ptr 2
+loop_start loop_op_6004
+loop_op_5967:
+loop_start loop_op_5981
+loop_op_5968:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5968
+loop_op_5981:
+inc_ptr
+loop_start loop_op_5996
+loop_op_5983:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_5983
+loop_op_5996:
+sub_ptr 6
+dec_data
+loop_end loop_op_5967
+loop_op_6004:
+inc_ptr
+loop_start loop_op_6021
+loop_op_6006:
+dec_data
+sub_ptr 6
+inc_data
+add_ptr 6
+loop_end loop_op_6006
+loop_op_6021:
+sub_ptr 6
+loop_start loop_op_6045
+loop_op_6028:
+dec_data
+add_ptr 7
+inc_data
+sub_ptr 7
+loop_end loop_op_6028
+loop_op_6045:
+sub_ptr 3
+loop_start loop_op_6071
+loop_op_6049:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 6
+inc_data
+sub_ptr 3
+loop_end loop_op_6049
+loop_op_6071:
+add_ptr 3
+loop_start loop_op_6084
+loop_op_6075:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_end loop_op_6075
+loop_op_6084:
+add_ptr 6
+loop_start loop_op_6143
+loop_op_6091:
+dec_ptr
+loop_start loop_op_6106
+loop_op_6093:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_6093
+loop_op_6106:
+inc_ptr
+loop_start loop_op_6121
+loop_op_6108:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_6108
+loop_op_6121:
+inc_ptr
+loop_start loop_op_6136
+loop_op_6123:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_6123
+loop_op_6136:
+add_ptr 3
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_6091
+loop_op_6143:
+inc_ptr
+loop_start loop_op_6346
+loop_op_6145:
+set_data 0
+dec_ptr
+inc_data
+loop_start loop_op_6341
+loop_op_6151:
+dec_ptr
+loop_start loop_op_6166
+loop_op_6153:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_6153
+loop_op_6166:
+inc_ptr
+loop_start loop_op_6181
+loop_op_6168:
+dec_data
+sub_ptr 5
+inc_data
+add_ptr 5
+loop_end loop_op_6168
+loop_op_6181:
+sub_ptr 6
+dec_data
+add_ptr 3
+loop_start loop_op_6202
+loop_op_6192:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 3
+inc_data
+inc_ptr
+loop_end loop_op_6192
+loop_op_6202:
+dec_ptr
+loop_start loop_op_6209
+loop_op_6204:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_6204
+loop_op_6209:
+add_ptr 3
+loop_start loop_op_6252
+loop_op_6213:
+dec_data
+loop_start loop_op_6251
+loop_op_6215:
+dec_data
+loop_start loop_op_6250
+loop_op_6217:
+dec_data
+loop_start loop_op_6249
+loop_op_6219:
+dec_data
+loop_start loop_op_6248
+loop_op_6221:
+dec_data
+loop_start loop_op_6247
+loop_op_6223:
+dec_data
+loop_start loop_op_6246
+loop_op_6225:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_start loop_op_6245
+loop_op_6234:
+sub_ptr 3
+dec_data
+add_ptr 3
+set_data 0
+loop_end loop_op_6234
+loop_op_6245:
+loop_end loop_op_6225
+loop_op_6246:
+loop_end loop_op_6223
+loop_op_6247:
+loop_end loop_op_6221
+loop_op_6248:
+loop_end loop_op_6219
+loop_op_6249:
+loop_end loop_op_6217
+loop_op_6250:
+loop_end loop_op_6215
+loop_op_6251:
+loop_end loop_op_6213
+loop_op_6252:
+sub_ptr 3
+loop_start loop_op_6263
+loop_op_6256:
+dec_ptr
+dec_data
+inc_ptr
+set_data 0
+loop_end loop_op_6256
+loop_op_6263:
+inc_ptr
+loop_start loop_op_6275
+loop_op_6265:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 3
+inc_data
+inc_ptr
+loop_end loop_op_6265
+loop_op_6275:
+dec_ptr
+loop_start loop_op_6282
+loop_op_6277:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_6277
+loop_op_6282:
+add_ptr 3
+loop_start loop_op_6328
+loop_op_6286:
+dec_data
+loop_start loop_op_6327
+loop_op_6288:
+dec_data
+loop_start loop_op_6326
+loop_op_6290:
+dec_data
+loop_start loop_op_6325
+loop_op_6292:
+dec_data
+loop_start loop_op_6324
+loop_op_6294:
+dec_data
+loop_start loop_op_6323
+loop_op_6296:
+dec_data
+loop_start loop_op_6322
+loop_op_6298:
+dec_data
+loop_start loop_op_6321
+loop_op_6300:
+dec_data
+sub_ptr 3
+inc_data
+add_ptr 3
+loop_start loop_op_6320
+loop_op_6309:
+sub_ptr 3
+dec_data
+add_ptr 3
+set_data 0
+loop_end loop_op_6309
+loop_op_6320:
+loop_end loop_op_6300
+loop_op_6321:
+loop_end loop_op_6298
+loop_op_6322:
+loop_end loop_op_6296
+loop_op_6323:
+loop_end loop_op_6294
+loop_op_6324:
+loop_end loop_op_6292
+loop_op_6325:
+loop_end loop_op_6290
+loop_op_6326:
+loop_end loop_op_6288
+loop_op_6327:
+loop_end loop_op_6286
+loop_op_6328:
+sub_ptr 3
+loop_start loop_op_6339
+loop_op_6332:
+dec_ptr
+inc_data
+inc_ptr
+set_data 0
+loop_end loop_op_6332
+loop_op_6339:
+dec_ptr
+loop_end loop_op_6151
+loop_op_6341:
+inc_ptr
+set_data 0
+loop_end loop_op_6145
+loop_op_6346:
+sub_ptr 2
+loop_start loop_op_6362
+loop_op_6349:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_6349
+loop_op_6362:
+add_ptr 5
+inc_data
+inc_ptr
+set_data 0
+loop_end loop_op_5726
+loop_op_6373:
+add_ptr 2
+loop_end loop_op_2947
+loop_op_6376:
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

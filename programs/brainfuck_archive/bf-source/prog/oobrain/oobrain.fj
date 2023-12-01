@@ -1,0 +1,8898 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+// %%
+// %%  (C) 2003 Chris Rathman
+// %%
+// %% reserve some space for a stack  (note: each stack entry takes two cells ~ value and a walk byte)
+add_ptr 120
+// %%
+// %% Object Definition:
+// %%
+// %%
+dec_ptr
+// object#
+inc_ptr
+// %%
+sub_ptr 2
+// function#/step#
+add_ptr 2
+// %%
+sub_ptr 3
+// class#
+add_ptr 3
+// %%
+sub_ptr 4
+// slot#1   (main!shape(0) | circle!x      | rectangle!x)
+add_ptr 4
+// %%
+sub_ptr 5
+// slot#2   (main!shape(1) | circle!y      | rectangle!y)
+add_ptr 5
+// %%
+sub_ptr 6
+// slot#3   (main!rect     | circle!radius | rectangle!width)
+add_ptr 6
+// %%
+sub_ptr 7
+// slot#4   (              |               | rectangle!height)
+add_ptr 7
+// %%
+sub_ptr 8
+// slot#5
+add_ptr 8
+// %%
+sub_ptr 9
+// reserved
+add_ptr 9
+// %%
+sub_ptr 20
+// object length
+add_ptr 20
+// %%
+// %% auto
+dec_data
+// allocate main root object
+add_ptr 12
+// 9~20  %% workspace (for previous object)
+set_data 0
+inc_ptr
+// 8     %% slot#5
+set_data 0
+inc_ptr
+// 7     %% slot#4
+set_data 0
+inc_ptr
+// 6     %% slot#3
+set_data 0
+inc_ptr
+// 5     %% slot#2
+set_data 0
+inc_ptr
+// 4     %% slot#1
+set_data 0
+inc_ptr
+// 3     %% class#
+set_data 0
+inc_ptr
+// 2     %% function#/step#
+set_data 0
+inc_ptr
+// 1     %% object#
+// %% stack push step#1 for main object
+sub_ptr 20
+loop_start loop_op_358
+loop_op_355:
+sub_ptr 2
+loop_end loop_op_355
+loop_op_358:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_366
+loop_op_363:
+add_ptr 2
+loop_end loop_op_363
+loop_op_366:
+add_ptr 18
+// %% stack push step#
+sub_ptr 20
+loop_start loop_op_413
+loop_op_410:
+sub_ptr 2
+loop_end loop_op_410
+loop_op_413:
+inc_data
+
+loop_start loop_op_420
+loop_op_417:
+add_ptr 2
+loop_end loop_op_417
+loop_op_420:
+add_ptr 18
+// %% stack push object#
+sub_ptr 22
+loop_start loop_op_19109
+loop_op_466:
+add_ptr 22
+// %% while stack do
+sub_ptr 20
+loop_start loop_op_513
+loop_op_510:
+sub_ptr 2
+loop_end loop_op_510
+loop_op_513:
+add_ptr 2
+// %% stack pull next object#
+dec_ptr
+loop_start loop_op_575
+loop_op_518:
+inc_ptr
+loop_start loop_op_523
+loop_op_520:
+add_ptr 2
+loop_end loop_op_520
+loop_op_523:
+add_ptr 18
+inc_data
+sub_ptr 20
+loop_start loop_op_570
+loop_op_567:
+sub_ptr 2
+loop_end loop_op_567
+loop_op_570:
+inc_ptr
+dec_data
+loop_end loop_op_518
+loop_op_575:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_585
+loop_op_582:
+add_ptr 2
+loop_end loop_op_582
+loop_op_585:
+sub_ptr 2
+loop_start loop_op_631
+loop_op_628:
+sub_ptr 2
+loop_end loop_op_628
+loop_op_631:
+add_ptr 2
+// %% stack pull next function#/step#
+dec_ptr
+loop_start loop_op_695
+loop_op_636:
+inc_ptr
+loop_start loop_op_641
+loop_op_638:
+add_ptr 2
+loop_end loop_op_638
+loop_op_641:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_690
+loop_op_687:
+sub_ptr 2
+loop_end loop_op_687
+loop_op_690:
+inc_ptr
+dec_data
+loop_end loop_op_636
+loop_op_695:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_705
+loop_op_702:
+add_ptr 2
+loop_end loop_op_702
+loop_op_705:
+add_ptr 18
+loop_start loop_op_841
+loop_op_728:
+// %% walk to next object#n
+inc_ptr
+loop_start loop_op_774
+loop_op_731:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_731
+loop_op_774:
+dec_ptr
+loop_start loop_op_819
+loop_op_776:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_776
+loop_op_819:
+add_ptr 20
+dec_data
+loop_end loop_op_728
+loop_op_841:
+sub_ptr 2
+set_data 0
+add_ptr 3
+loop_start loop_op_859
+loop_op_850:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_850
+loop_op_859:
+dec_ptr
+// %% set function#/step# for the object
+// ================================================================================================
+// = main process                                                                                 =
+// ================================================================================================
+set_data 0
+sub_ptr 3
+loop_start loop_op_883
+loop_op_871:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_871
+loop_op_883:
+add_ptr 4
+loop_start loop_op_899
+loop_op_888:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_888
+loop_op_899:
+dec_ptr
+// %% get class#
+inc_ptr
+set_data 0
+loop_start loop_op_911
+loop_op_906:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_906
+loop_op_911:
+
+set_data 0
+dec_ptr
+loop_start loop_op_926
+loop_op_918:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_918
+loop_op_926:
+inc_ptr
+dec_data
+loop_start loop_op_5781
+loop_op_929:
+set_data 0
+dec_ptr
+// %% IF (class#0)
+// %% set to return to the next step# after continue
+set_data 0
+sub_ptr 2
+loop_start loop_op_951
+loop_op_941:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_941
+loop_op_951:
+add_ptr 3
+loop_start loop_op_964
+loop_op_955:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_955
+loop_op_964:
+dec_ptr
+inc_data
+// %% get step#
+sub_ptr 20
+loop_start loop_op_991
+loop_op_988:
+sub_ptr 2
+loop_end loop_op_988
+loop_op_991:
+inc_data
+dec_ptr
+add_data 4
+inc_ptr
+loop_start loop_op_1002
+loop_op_999:
+add_ptr 2
+loop_end loop_op_999
+loop_op_1002:
+add_ptr 18
+// %% stack push step#
+sub_ptr 20
+loop_start loop_op_1049
+loop_op_1046:
+sub_ptr 2
+loop_end loop_op_1046
+loop_op_1049:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_1059
+loop_op_1056:
+add_ptr 2
+loop_end loop_op_1056
+loop_op_1059:
+add_ptr 18
+// %% stack mark spot for step#
+loop_start loop_op_1138
+loop_op_1083:
+sub_ptr 20
+loop_start loop_op_1107
+loop_op_1104:
+sub_ptr 2
+loop_end loop_op_1104
+loop_op_1107:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1114
+loop_op_1111:
+add_ptr 2
+loop_end loop_op_1111
+loop_op_1114:
+add_ptr 18
+dec_data
+loop_end loop_op_1083
+loop_op_1138:
+// %% stack push step#
+sub_ptr 20
+loop_start loop_op_1163
+loop_op_1160:
+sub_ptr 2
+loop_end loop_op_1160
+loop_op_1163:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_1173
+loop_op_1170:
+add_ptr 2
+loop_end loop_op_1170
+loop_op_1173:
+add_ptr 18
+// %% stack push object#
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#1 new shape()                                                                        %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_1215
+loop_op_1205:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_1205
+loop_op_1215:
+add_ptr 3
+loop_start loop_op_1228
+loop_op_1219:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_1219
+loop_op_1228:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 1
+loop_start loop_op_1241
+loop_op_1236:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_1236
+loop_op_1241:
+
+set_data 0
+dec_ptr
+loop_start loop_op_1256
+loop_op_1248:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_1248
+loop_op_1256:
+inc_ptr
+dec_data
+loop_start loop_op_2720
+loop_op_1259:
+set_data 0
+dec_ptr
+// %% IF (function#1)
+// %% allocate a new object in the heap
+dec_ptr
+loop_start loop_op_1288
+loop_op_1267:
+sub_ptr 20
+loop_end loop_op_1267
+loop_op_1288:
+inc_ptr
+// %% walk back to root object
+add_ptr 20
+// %% skip over first object
+dec_ptr
+loop_start loop_op_1406
+loop_op_1313:
+inc_ptr
+// %% find free space in the heap
+set_data 0
+dec_ptr
+loop_start loop_op_1328
+loop_op_1320:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1320
+loop_op_1328:
+add_ptr 2
+loop_start loop_op_1338
+loop_op_1331:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1331
+loop_op_1338:
+dec_ptr
+// %% get object#
+loop_start loop_op_1384
+loop_op_1341:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_1341
+loop_op_1384:
+add_ptr 19
+loop_end loop_op_1313
+loop_op_1406:
+
+set_data 1
+inc_ptr
+loop_start loop_op_1419
+loop_op_1414:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_1414
+loop_op_1419:
+
+// %% object#n
+sub_ptr 3
+set_data 1
+add_ptr 3
+// %% class# rectangle
+set_data 0
+dec_ptr
+loop_start loop_op_1446
+loop_op_1438:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_1438
+loop_op_1446:
+add_ptr 2
+loop_start loop_op_1456
+loop_op_1449:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1449
+loop_op_1456:
+dec_ptr
+// %% get new object#
+dec_ptr
+loop_start loop_op_1528
+loop_op_1460:
+// %% walk back to root object
+inc_ptr
+loop_start loop_op_1506
+loop_op_1463:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_1463
+loop_op_1506:
+sub_ptr 21
+loop_end loop_op_1460
+loop_op_1528:
+inc_ptr
+// %% set local slot# for shape(0)
+loop_start loop_op_1542
+loop_op_1531:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_1531
+loop_op_1542:
+// %% set slot# shape(0)
+// %% make a function call: shape(0) = new rectangle(x y width height)
+sub_ptr 4
+loop_start loop_op_1563
+loop_op_1549:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1549
+loop_op_1563:
+add_ptr 5
+loop_start loop_op_1582
+loop_op_1569:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1569
+loop_op_1582:
+dec_ptr
+// %% get shape(0) from slot
+sub_ptr 20
+loop_start loop_op_1608
+loop_op_1605:
+sub_ptr 2
+loop_end loop_op_1605
+loop_op_1608:
+inc_data
+// %% stack push param# height = 6
+dec_ptr
+add_data 6
+inc_ptr
+loop_start loop_op_1622
+loop_op_1619:
+add_ptr 2
+loop_end loop_op_1619
+loop_op_1622:
+sub_ptr 2
+loop_start loop_op_1668
+loop_op_1665:
+sub_ptr 2
+loop_end loop_op_1665
+loop_op_1668:
+inc_data
+// %% stack push param# width = 5
+dec_ptr
+add_data 5
+inc_ptr
+loop_start loop_op_1681
+loop_op_1678:
+add_ptr 2
+loop_end loop_op_1678
+loop_op_1681:
+sub_ptr 2
+loop_start loop_op_1727
+loop_op_1724:
+sub_ptr 2
+loop_end loop_op_1724
+loop_op_1727:
+inc_data
+// %% stack push param# y = 20
+dec_ptr
+add_data 20
+inc_ptr
+loop_start loop_op_1755
+loop_op_1752:
+add_ptr 2
+loop_end loop_op_1752
+loop_op_1755:
+sub_ptr 2
+loop_start loop_op_1801
+loop_op_1798:
+sub_ptr 2
+loop_end loop_op_1798
+loop_op_1801:
+inc_data
+// %% stack push param# x = 10
+dec_ptr
+add_data 10
+inc_ptr
+loop_start loop_op_1819
+loop_op_1816:
+add_ptr 2
+loop_end loop_op_1816
+loop_op_1819:
+sub_ptr 2
+loop_start loop_op_1865
+loop_op_1862:
+sub_ptr 2
+loop_end loop_op_1862
+loop_op_1865:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1873
+loop_op_1870:
+add_ptr 2
+loop_end loop_op_1870
+loop_op_1873:
+add_ptr 18
+// %% stack push function# rectangle
+sub_ptr 20
+loop_start loop_op_1920
+loop_op_1917:
+sub_ptr 2
+loop_end loop_op_1917
+loop_op_1920:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_1930
+loop_op_1927:
+add_ptr 2
+loop_end loop_op_1927
+loop_op_1930:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_2009
+loop_op_1954:
+sub_ptr 20
+loop_start loop_op_1978
+loop_op_1975:
+sub_ptr 2
+loop_end loop_op_1975
+loop_op_1978:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_1985
+loop_op_1982:
+add_ptr 2
+loop_end loop_op_1982
+loop_op_1985:
+add_ptr 18
+dec_data
+loop_end loop_op_1954
+loop_op_2009:
+// %% stack push object# shape(0)
+// %% allocate a new object in the heap
+dec_ptr
+loop_start loop_op_2034
+loop_op_2013:
+sub_ptr 20
+loop_end loop_op_2013
+loop_op_2034:
+inc_ptr
+// %% walk back to root object
+add_ptr 20
+// %% skip over first object
+dec_ptr
+loop_start loop_op_2152
+loop_op_2059:
+inc_ptr
+// %% find free space in the heap
+set_data 0
+dec_ptr
+loop_start loop_op_2074
+loop_op_2066:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_2066
+loop_op_2074:
+add_ptr 2
+loop_start loop_op_2084
+loop_op_2077:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_2077
+loop_op_2084:
+dec_ptr
+// %% get object#
+loop_start loop_op_2130
+loop_op_2087:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_2087
+loop_op_2130:
+add_ptr 19
+loop_end loop_op_2059
+loop_op_2152:
+
+set_data 1
+inc_ptr
+loop_start loop_op_2165
+loop_op_2160:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_2160
+loop_op_2165:
+
+// %% object#n
+sub_ptr 3
+set_data 2
+add_ptr 3
+// %% class#
+set_data 0
+dec_ptr
+loop_start loop_op_2193
+loop_op_2185:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_2185
+loop_op_2193:
+add_ptr 2
+loop_start loop_op_2203
+loop_op_2196:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_2196
+loop_op_2203:
+dec_ptr
+// %% get new object#
+dec_ptr
+loop_start loop_op_2275
+loop_op_2207:
+// %% walk back to root object
+inc_ptr
+loop_start loop_op_2253
+loop_op_2210:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_2210
+loop_op_2253:
+sub_ptr 21
+loop_end loop_op_2207
+loop_op_2275:
+inc_ptr
+// %% set local slot# for shape(1)
+loop_start loop_op_2291
+loop_op_2278:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_2278
+loop_op_2291:
+// %% set slot# shape(1)
+// %% make a function call: shape(1) = new circle(x y radius)
+sub_ptr 5
+loop_start loop_op_2315
+loop_op_2299:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_2299
+loop_op_2315:
+add_ptr 6
+loop_start loop_op_2337
+loop_op_2322:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_2322
+loop_op_2337:
+dec_ptr
+// %% get shape(1) from slot
+sub_ptr 20
+loop_start loop_op_2363
+loop_op_2360:
+sub_ptr 2
+loop_end loop_op_2360
+loop_op_2363:
+inc_data
+// %% stack push param# radius = 8
+dec_ptr
+add_data 8
+inc_ptr
+loop_start loop_op_2379
+loop_op_2376:
+add_ptr 2
+loop_end loop_op_2376
+loop_op_2379:
+sub_ptr 2
+loop_start loop_op_2425
+loop_op_2422:
+sub_ptr 2
+loop_end loop_op_2422
+loop_op_2425:
+inc_data
+// %% stack push param# y = 25
+dec_ptr
+add_data 25
+inc_ptr
+loop_start loop_op_2458
+loop_op_2455:
+add_ptr 2
+loop_end loop_op_2455
+loop_op_2458:
+sub_ptr 2
+loop_start loop_op_2504
+loop_op_2501:
+sub_ptr 2
+loop_end loop_op_2501
+loop_op_2504:
+inc_data
+// %% stack push param# x = 15
+dec_ptr
+add_data 15
+inc_ptr
+loop_start loop_op_2527
+loop_op_2524:
+add_ptr 2
+loop_end loop_op_2524
+loop_op_2527:
+sub_ptr 2
+loop_start loop_op_2573
+loop_op_2570:
+sub_ptr 2
+loop_end loop_op_2570
+loop_op_2573:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_2581
+loop_op_2578:
+add_ptr 2
+loop_end loop_op_2578
+loop_op_2581:
+add_ptr 18
+// %% stack push function# circle
+sub_ptr 20
+loop_start loop_op_2628
+loop_op_2625:
+sub_ptr 2
+loop_end loop_op_2625
+loop_op_2628:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_2638
+loop_op_2635:
+add_ptr 2
+loop_end loop_op_2635
+loop_op_2638:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_2717
+loop_op_2662:
+sub_ptr 20
+loop_start loop_op_2686
+loop_op_2683:
+sub_ptr 2
+loop_end loop_op_2683
+loop_op_2686:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_2693
+loop_op_2690:
+add_ptr 2
+loop_end loop_op_2690
+loop_op_2693:
+add_ptr 18
+dec_data
+loop_end loop_op_2662
+loop_op_2717:
+// %% stack push object# shape(1)
+inc_ptr
+loop_end loop_op_1259
+loop_op_2720:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#2 shape!draw()                                                                       %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_2741
+loop_op_2731:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2731
+loop_op_2741:
+add_ptr 3
+loop_start loop_op_2754
+loop_op_2745:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_2745
+loop_op_2754:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 2
+loop_start loop_op_2768
+loop_op_2763:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_2763
+loop_op_2768:
+
+set_data 0
+dec_ptr
+loop_start loop_op_2783
+loop_op_2775:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_2775
+loop_op_2783:
+inc_ptr
+dec_data
+loop_start loop_op_3137
+loop_op_2786:
+set_data 0
+dec_ptr
+// %% IF (function#2)
+// %% get the two shapes to process
+sub_ptr 4
+loop_start loop_op_2811
+loop_op_2797:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_2797
+loop_op_2811:
+add_ptr 5
+loop_start loop_op_2830
+loop_op_2817:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_2817
+loop_op_2830:
+dec_ptr
+// %% get shape(0) from slot
+loop_start loop_op_2844
+loop_op_2833:
+add_ptr 4
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_2833
+loop_op_2844:
+// %% push shape(0) in the workspace
+sub_ptr 5
+loop_start loop_op_2867
+loop_op_2851:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_2851
+loop_op_2867:
+add_ptr 6
+loop_start loop_op_2889
+loop_op_2874:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_2874
+loop_op_2889:
+dec_ptr
+// %% get shape(1) from slot
+loop_start loop_op_2905
+loop_op_2892:
+add_ptr 5
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_2892
+loop_op_2905:
+// %% push shape(1) in the workspace
+// %% make a function call: shape(i)!draw()
+add_ptr 3
+add_data 2
+loop_start loop_op_3132
+loop_op_2913:
+dec_data
+sub_ptr 3
+// %% for i = 1 downto 0
+add_ptr 4
+loop_start loop_op_2934
+loop_op_2923:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_2923
+loop_op_2934:
+sub_ptr 4
+// %% get next shape to process
+sub_ptr 20
+loop_start loop_op_2963
+loop_op_2960:
+sub_ptr 2
+loop_end loop_op_2960
+loop_op_2963:
+inc_data
+dec_ptr
+add_data 4
+inc_ptr
+loop_start loop_op_2974
+loop_op_2971:
+add_ptr 2
+loop_end loop_op_2971
+loop_op_2974:
+add_ptr 18
+// %% stack push function# draw
+sub_ptr 20
+loop_start loop_op_3021
+loop_op_3018:
+sub_ptr 2
+loop_end loop_op_3018
+loop_op_3021:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_3031
+loop_op_3028:
+add_ptr 2
+loop_end loop_op_3028
+loop_op_3031:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_3110
+loop_op_3055:
+sub_ptr 20
+loop_start loop_op_3079
+loop_op_3076:
+sub_ptr 2
+loop_end loop_op_3076
+loop_op_3079:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_3086
+loop_op_3083:
+add_ptr 2
+loop_end loop_op_3083
+loop_op_3086:
+add_ptr 18
+dec_data
+loop_end loop_op_3055
+loop_op_3110:
+// %% stack push object# shape(0)
+add_ptr 5
+loop_start loop_op_3122
+loop_op_3117:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3117
+loop_op_3122:
+sub_ptr 5
+// %% pull down next shape
+add_ptr 3
+loop_end loop_op_2913
+loop_op_3132:
+sub_ptr 2
+loop_end loop_op_2786
+loop_op_3137:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#3 shape!rMoveTo()                                                                    %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_3158
+loop_op_3148:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_3148
+loop_op_3158:
+add_ptr 3
+loop_start loop_op_3171
+loop_op_3162:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_3162
+loop_op_3171:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 3
+loop_start loop_op_3186
+loop_op_3181:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_3181
+loop_op_3186:
+
+set_data 0
+dec_ptr
+loop_start loop_op_3201
+loop_op_3193:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_3193
+loop_op_3201:
+inc_ptr
+dec_data
+loop_start loop_op_3714
+loop_op_3204:
+set_data 0
+dec_ptr
+// %% IF (function#3)
+// %% get the two shapes to process
+sub_ptr 4
+loop_start loop_op_3229
+loop_op_3215:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_3215
+loop_op_3229:
+add_ptr 5
+loop_start loop_op_3248
+loop_op_3235:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_3235
+loop_op_3248:
+dec_ptr
+// %% get shape(0) from slot
+loop_start loop_op_3262
+loop_op_3251:
+add_ptr 4
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_3251
+loop_op_3262:
+// %% push shape(0) in the workspace
+sub_ptr 5
+loop_start loop_op_3285
+loop_op_3269:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_3269
+loop_op_3285:
+add_ptr 6
+loop_start loop_op_3307
+loop_op_3292:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_3292
+loop_op_3307:
+dec_ptr
+// %% get shape(1) from slot
+loop_start loop_op_3323
+loop_op_3310:
+add_ptr 5
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_3310
+loop_op_3323:
+// %% push shape(1) in the workspace
+// %% make a function call: shape(i)!rMoveTo(100)
+add_ptr 3
+add_data 2
+loop_start loop_op_3709
+loop_op_3331:
+dec_data
+sub_ptr 3
+// %% for i = 1 downto 0
+add_ptr 4
+loop_start loop_op_3352
+loop_op_3341:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_3341
+loop_op_3352:
+sub_ptr 4
+// %% get next shape to process
+sub_ptr 20
+loop_start loop_op_3381
+loop_op_3378:
+sub_ptr 2
+loop_end loop_op_3378
+loop_op_3381:
+// %% stack push param# dy = 100
+dec_ptr
+add_data 4
+loop_start loop_op_3397
+loop_op_3388:
+inc_ptr
+add_data 5
+dec_ptr
+dec_data
+loop_end loop_op_3388
+loop_op_3397:
+inc_ptr
+loop_start loop_op_3408
+loop_op_3399:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_end loop_op_3399
+loop_op_3408:
+
+inc_data
+loop_start loop_op_3415
+loop_op_3412:
+add_ptr 2
+loop_end loop_op_3412
+loop_op_3415:
+sub_ptr 2
+loop_start loop_op_3461
+loop_op_3458:
+sub_ptr 2
+loop_end loop_op_3458
+loop_op_3461:
+// %% stack push param# dx = 100
+dec_ptr
+add_data 4
+loop_start loop_op_3477
+loop_op_3468:
+inc_ptr
+add_data 5
+dec_ptr
+dec_data
+loop_end loop_op_3468
+loop_op_3477:
+inc_ptr
+loop_start loop_op_3488
+loop_op_3479:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_end loop_op_3479
+loop_op_3488:
+
+inc_data
+loop_start loop_op_3495
+loop_op_3492:
+add_ptr 2
+loop_end loop_op_3492
+loop_op_3495:
+sub_ptr 2
+loop_start loop_op_3541
+loop_op_3538:
+sub_ptr 2
+loop_end loop_op_3538
+loop_op_3541:
+inc_data
+dec_ptr
+add_data 3
+inc_ptr
+loop_start loop_op_3551
+loop_op_3548:
+add_ptr 2
+loop_end loop_op_3548
+loop_op_3551:
+add_ptr 18
+// %% stack push function# rmoveto
+sub_ptr 20
+loop_start loop_op_3598
+loop_op_3595:
+sub_ptr 2
+loop_end loop_op_3595
+loop_op_3598:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_3608
+loop_op_3605:
+add_ptr 2
+loop_end loop_op_3605
+loop_op_3608:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_3687
+loop_op_3632:
+sub_ptr 20
+loop_start loop_op_3656
+loop_op_3653:
+sub_ptr 2
+loop_end loop_op_3653
+loop_op_3656:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_3663
+loop_op_3660:
+add_ptr 2
+loop_end loop_op_3660
+loop_op_3663:
+add_ptr 18
+dec_data
+loop_end loop_op_3632
+loop_op_3687:
+// %% stack push object# shape(0)
+add_ptr 5
+loop_start loop_op_3699
+loop_op_3694:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_3694
+loop_op_3699:
+sub_ptr 5
+// %% pull down next shape
+add_ptr 3
+loop_end loop_op_3331
+loop_op_3709:
+sub_ptr 2
+loop_end loop_op_3204
+loop_op_3714:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#4 shape!draw()                                                                       %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_3735
+loop_op_3725:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_3725
+loop_op_3735:
+add_ptr 3
+loop_start loop_op_3748
+loop_op_3739:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_3739
+loop_op_3748:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 4
+loop_start loop_op_3764
+loop_op_3759:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_3759
+loop_op_3764:
+
+set_data 0
+dec_ptr
+loop_start loop_op_3779
+loop_op_3771:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_3771
+loop_op_3779:
+inc_ptr
+dec_data
+loop_start loop_op_4133
+loop_op_3782:
+set_data 0
+dec_ptr
+// %% IF (function#4)
+// %% get the two shapes to process
+sub_ptr 4
+loop_start loop_op_3807
+loop_op_3793:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_3793
+loop_op_3807:
+add_ptr 5
+loop_start loop_op_3826
+loop_op_3813:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_3813
+loop_op_3826:
+dec_ptr
+// %% get shape(0) from slot
+loop_start loop_op_3840
+loop_op_3829:
+add_ptr 4
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_3829
+loop_op_3840:
+// %% push shape(0) in the workspace
+sub_ptr 5
+loop_start loop_op_3863
+loop_op_3847:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_3847
+loop_op_3863:
+add_ptr 6
+loop_start loop_op_3885
+loop_op_3870:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_3870
+loop_op_3885:
+dec_ptr
+// %% get shape(1) from slot
+loop_start loop_op_3901
+loop_op_3888:
+add_ptr 5
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_3888
+loop_op_3901:
+// %% push shape(1) in the workspace
+// %% make a function call: shape(i)!draw()
+add_ptr 3
+add_data 2
+loop_start loop_op_4128
+loop_op_3909:
+dec_data
+sub_ptr 3
+// %% for i = 1 downto 0
+add_ptr 4
+loop_start loop_op_3930
+loop_op_3919:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_3919
+loop_op_3930:
+sub_ptr 4
+// %% get next shape to process
+sub_ptr 20
+loop_start loop_op_3959
+loop_op_3956:
+sub_ptr 2
+loop_end loop_op_3956
+loop_op_3959:
+inc_data
+dec_ptr
+add_data 4
+inc_ptr
+loop_start loop_op_3970
+loop_op_3967:
+add_ptr 2
+loop_end loop_op_3967
+loop_op_3970:
+add_ptr 18
+// %% stack push function# draw
+sub_ptr 20
+loop_start loop_op_4017
+loop_op_4014:
+sub_ptr 2
+loop_end loop_op_4014
+loop_op_4017:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_4027
+loop_op_4024:
+add_ptr 2
+loop_end loop_op_4024
+loop_op_4027:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_4106
+loop_op_4051:
+sub_ptr 20
+loop_start loop_op_4075
+loop_op_4072:
+sub_ptr 2
+loop_end loop_op_4072
+loop_op_4075:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_4082
+loop_op_4079:
+add_ptr 2
+loop_end loop_op_4079
+loop_op_4082:
+add_ptr 18
+dec_data
+loop_end loop_op_4051
+loop_op_4106:
+// %% stack push object# shape(0)
+add_ptr 5
+loop_start loop_op_4118
+loop_op_4113:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4113
+loop_op_4118:
+sub_ptr 5
+// %% pull down next shape
+add_ptr 3
+loop_end loop_op_3909
+loop_op_4128:
+sub_ptr 2
+loop_end loop_op_3782
+loop_op_4133:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#5 new rect()                                                                         %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_4154
+loop_op_4144:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_4144
+loop_op_4154:
+add_ptr 3
+loop_start loop_op_4167
+loop_op_4158:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_4158
+loop_op_4167:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 5
+loop_start loop_op_4184
+loop_op_4179:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_4179
+loop_op_4184:
+
+set_data 0
+dec_ptr
+loop_start loop_op_4199
+loop_op_4191:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_4191
+loop_op_4199:
+inc_ptr
+dec_data
+loop_start loop_op_4960
+loop_op_4202:
+set_data 0
+dec_ptr
+// %% IF (function#5)
+// %% allocate a new object in the heap
+dec_ptr
+loop_start loop_op_4231
+loop_op_4210:
+sub_ptr 20
+loop_end loop_op_4210
+loop_op_4231:
+inc_ptr
+// %% walk back to root object
+add_ptr 20
+// %% skip over first object
+dec_ptr
+loop_start loop_op_4349
+loop_op_4256:
+inc_ptr
+// %% find free space in the heap
+set_data 0
+dec_ptr
+loop_start loop_op_4271
+loop_op_4263:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_4263
+loop_op_4271:
+add_ptr 2
+loop_start loop_op_4281
+loop_op_4274:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_4274
+loop_op_4281:
+dec_ptr
+// %% get object#
+loop_start loop_op_4327
+loop_op_4284:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_4284
+loop_op_4327:
+add_ptr 19
+loop_end loop_op_4256
+loop_op_4349:
+
+set_data 1
+inc_ptr
+loop_start loop_op_4362
+loop_op_4357:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_4357
+loop_op_4362:
+
+// %% object#n
+sub_ptr 3
+set_data 1
+add_ptr 3
+// %% class# rectangle
+set_data 0
+dec_ptr
+loop_start loop_op_4389
+loop_op_4381:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_4381
+loop_op_4389:
+add_ptr 2
+loop_start loop_op_4399
+loop_op_4392:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_4392
+loop_op_4399:
+dec_ptr
+// %% get new object#
+dec_ptr
+loop_start loop_op_4471
+loop_op_4403:
+// %% walk back to root object
+inc_ptr
+loop_start loop_op_4449
+loop_op_4406:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_4406
+loop_op_4449:
+sub_ptr 21
+loop_end loop_op_4403
+loop_op_4471:
+inc_ptr
+// %% set local slot# for rect
+loop_start loop_op_4489
+loop_op_4474:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_4474
+loop_op_4489:
+// %% set slot# rect
+// %% make a function call: rect = new rectangle(x y width height)
+sub_ptr 6
+loop_start loop_op_4516
+loop_op_4498:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_4498
+loop_op_4516:
+add_ptr 7
+loop_start loop_op_4541
+loop_op_4524:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_4524
+loop_op_4541:
+dec_ptr
+// %% get rect from slot#
+sub_ptr 20
+loop_start loop_op_4567
+loop_op_4564:
+sub_ptr 2
+loop_end loop_op_4564
+loop_op_4567:
+inc_data
+dec_ptr
+add_data 15
+inc_ptr
+loop_start loop_op_4589
+loop_op_4586:
+add_ptr 2
+loop_end loop_op_4586
+loop_op_4589:
+add_ptr 18
+// %% stack push param# height=15
+sub_ptr 20
+loop_start loop_op_4636
+loop_op_4633:
+sub_ptr 2
+loop_end loop_op_4633
+loop_op_4636:
+inc_data
+dec_ptr
+add_data 15
+inc_ptr
+loop_start loop_op_4658
+loop_op_4655:
+add_ptr 2
+loop_end loop_op_4655
+loop_op_4658:
+add_ptr 18
+// %% stack push param# width=15
+sub_ptr 20
+loop_start loop_op_4705
+loop_op_4702:
+sub_ptr 2
+loop_end loop_op_4702
+loop_op_4705:
+inc_data
+
+loop_start loop_op_4712
+loop_op_4709:
+add_ptr 2
+loop_end loop_op_4709
+loop_op_4712:
+add_ptr 18
+// %% stack push param# y=0
+sub_ptr 20
+loop_start loop_op_4759
+loop_op_4756:
+sub_ptr 2
+loop_end loop_op_4756
+loop_op_4759:
+inc_data
+
+loop_start loop_op_4766
+loop_op_4763:
+add_ptr 2
+loop_end loop_op_4763
+loop_op_4766:
+add_ptr 18
+// %% stack push param# x=0
+sub_ptr 20
+loop_start loop_op_4813
+loop_op_4810:
+sub_ptr 2
+loop_end loop_op_4810
+loop_op_4813:
+inc_data
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_4821
+loop_op_4818:
+add_ptr 2
+loop_end loop_op_4818
+loop_op_4821:
+add_ptr 18
+// %% stack push function# circle
+sub_ptr 20
+loop_start loop_op_4868
+loop_op_4865:
+sub_ptr 2
+loop_end loop_op_4865
+loop_op_4868:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_4878
+loop_op_4875:
+add_ptr 2
+loop_end loop_op_4875
+loop_op_4878:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_4957
+loop_op_4902:
+sub_ptr 20
+loop_start loop_op_4926
+loop_op_4923:
+sub_ptr 2
+loop_end loop_op_4923
+loop_op_4926:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_4933
+loop_op_4930:
+add_ptr 2
+loop_end loop_op_4930
+loop_op_4933:
+add_ptr 18
+dec_data
+loop_end loop_op_4902
+loop_op_4957:
+// %% stack push object# rect
+inc_ptr
+loop_end loop_op_4202
+loop_op_4960:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#6 rect!setWidth()                                                                    %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_4981
+loop_op_4971:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_4971
+loop_op_4981:
+add_ptr 3
+loop_start loop_op_4994
+loop_op_4985:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_4985
+loop_op_4994:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 6
+loop_start loop_op_5012
+loop_op_5007:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_5007
+loop_op_5012:
+
+set_data 0
+dec_ptr
+loop_start loop_op_5027
+loop_op_5019:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_5019
+loop_op_5027:
+inc_ptr
+dec_data
+loop_start loop_op_5347
+loop_op_5030:
+set_data 0
+dec_ptr
+// %% IF (function#6)
+// %% make a function call: rect!setRadius(radius)
+sub_ptr 6
+loop_start loop_op_5061
+loop_op_5043:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_5043
+loop_op_5061:
+add_ptr 7
+loop_start loop_op_5086
+loop_op_5069:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_5069
+loop_op_5086:
+dec_ptr
+// %% get rect from slot#
+sub_ptr 20
+loop_start loop_op_5112
+loop_op_5109:
+sub_ptr 2
+loop_end loop_op_5109
+loop_op_5112:
+inc_data
+// %% stack push param# radius=30
+dec_ptr
+add_data 30
+inc_ptr
+loop_start loop_op_5150
+loop_op_5147:
+add_ptr 2
+loop_end loop_op_5147
+loop_op_5150:
+sub_ptr 2
+loop_start loop_op_5196
+loop_op_5193:
+sub_ptr 2
+loop_end loop_op_5193
+loop_op_5196:
+inc_data
+dec_ptr
+add_data 5
+inc_ptr
+loop_start loop_op_5208
+loop_op_5205:
+add_ptr 2
+loop_end loop_op_5205
+loop_op_5208:
+add_ptr 18
+// %% stack push function# setRadius=30
+sub_ptr 20
+loop_start loop_op_5255
+loop_op_5252:
+sub_ptr 2
+loop_end loop_op_5252
+loop_op_5255:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_5265
+loop_op_5262:
+add_ptr 2
+loop_end loop_op_5262
+loop_op_5265:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_5344
+loop_op_5289:
+sub_ptr 20
+loop_start loop_op_5313
+loop_op_5310:
+sub_ptr 2
+loop_end loop_op_5310
+loop_op_5313:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_5320
+loop_op_5317:
+add_ptr 2
+loop_end loop_op_5317
+loop_op_5320:
+add_ptr 18
+dec_data
+loop_end loop_op_5289
+loop_op_5344:
+// %% stack push object# rect
+inc_ptr
+loop_end loop_op_5030
+loop_op_5347:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#7 rect!draw()                                                                        %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_5368
+loop_op_5358:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_5358
+loop_op_5368:
+add_ptr 3
+loop_start loop_op_5381
+loop_op_5372:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_5372
+loop_op_5381:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 7
+loop_start loop_op_5400
+loop_op_5395:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_5395
+loop_op_5400:
+
+set_data 0
+dec_ptr
+loop_start loop_op_5415
+loop_op_5407:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_5407
+loop_op_5415:
+inc_ptr
+dec_data
+loop_start loop_op_5650
+loop_op_5418:
+set_data 0
+dec_ptr
+// %% IF (function#7)
+// %% make a function call: rect!draw()
+sub_ptr 6
+loop_start loop_op_5449
+loop_op_5431:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_5431
+loop_op_5449:
+add_ptr 7
+loop_start loop_op_5474
+loop_op_5457:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_5457
+loop_op_5474:
+dec_ptr
+// %% get shape(0) from slot
+sub_ptr 20
+loop_start loop_op_5500
+loop_op_5497:
+sub_ptr 2
+loop_end loop_op_5497
+loop_op_5500:
+inc_data
+dec_ptr
+add_data 4
+inc_ptr
+loop_start loop_op_5511
+loop_op_5508:
+add_ptr 2
+loop_end loop_op_5508
+loop_op_5511:
+add_ptr 18
+// %% stack push function# draw
+sub_ptr 20
+loop_start loop_op_5558
+loop_op_5555:
+sub_ptr 2
+loop_end loop_op_5555
+loop_op_5558:
+inc_data
+dec_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_5568
+loop_op_5565:
+add_ptr 2
+loop_end loop_op_5565
+loop_op_5568:
+add_ptr 18
+// %% stack mark spot for object#
+loop_start loop_op_5647
+loop_op_5592:
+sub_ptr 20
+loop_start loop_op_5616
+loop_op_5613:
+sub_ptr 2
+loop_end loop_op_5613
+loop_op_5616:
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_5623
+loop_op_5620:
+add_ptr 2
+loop_end loop_op_5620
+loop_op_5623:
+add_ptr 18
+dec_data
+loop_end loop_op_5592
+loop_op_5647:
+// %% stack push object# rect
+inc_ptr
+loop_end loop_op_5418
+loop_op_5650:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % step#8 exit()                                                                             %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_5671
+loop_op_5661:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_5661
+loop_op_5671:
+add_ptr 3
+loop_start loop_op_5684
+loop_op_5675:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_5675
+loop_op_5684:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 8
+loop_start loop_op_5704
+loop_op_5699:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_5699
+loop_op_5704:
+
+set_data 0
+dec_ptr
+loop_start loop_op_5719
+loop_op_5711:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_5711
+loop_op_5719:
+inc_ptr
+dec_data
+loop_start loop_op_5777
+loop_op_5722:
+set_data 0
+dec_ptr
+// %% IF (function#8)
+sub_ptr 22
+set_data 0
+add_ptr 22
+// %% kill stack to exit
+inc_ptr
+loop_end loop_op_5722
+loop_op_5777:
+dec_ptr
+// %% END IF (function#99)
+inc_ptr
+loop_end loop_op_929
+loop_op_5781:
+dec_ptr
+// %% END IF (class#0)
+// ================================================================================================
+// = rectangle class                                                                              =
+// ================================================================================================
+set_data 0
+sub_ptr 3
+loop_start loop_op_5805
+loop_op_5793:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_5793
+loop_op_5805:
+add_ptr 4
+loop_start loop_op_5821
+loop_op_5810:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_5810
+loop_op_5821:
+dec_ptr
+// %% get class#
+inc_ptr
+set_data 1
+loop_start loop_op_5834
+loop_op_5829:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_5829
+loop_op_5834:
+
+set_data 0
+dec_ptr
+loop_start loop_op_5849
+loop_op_5841:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_5841
+loop_op_5849:
+inc_ptr
+dec_data
+loop_start loop_op_13260
+loop_op_5852:
+set_data 0
+dec_ptr
+// %% IF (class#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#1 rectangle(x y width height)                                                    %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_5876
+loop_op_5866:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_5866
+loop_op_5876:
+add_ptr 3
+loop_start loop_op_5889
+loop_op_5880:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_5880
+loop_op_5889:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 1
+loop_start loop_op_5902
+loop_op_5897:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_5897
+loop_op_5902:
+
+set_data 0
+dec_ptr
+loop_start loop_op_5917
+loop_op_5909:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_5909
+loop_op_5917:
+inc_ptr
+dec_data
+loop_start loop_op_7380
+loop_op_5920:
+set_data 0
+dec_ptr
+// %% IF (function#1)
+// %% clear the slots
+sub_ptr 4
+set_data 0
+add_ptr 4
+// %% x=0
+sub_ptr 5
+set_data 0
+add_ptr 5
+// %% y=0
+sub_ptr 6
+set_data 0
+add_ptr 6
+// %% width=0
+sub_ptr 7
+set_data 0
+add_ptr 7
+// %% height=0
+// %% grab the x value from the stack
+dec_ptr
+loop_start loop_op_5997
+loop_op_5989:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_5989
+loop_op_5997:
+add_ptr 2
+loop_start loop_op_6007
+loop_op_6000:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_6000
+loop_op_6007:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_6078
+loop_op_6011:
+inc_ptr
+loop_start loop_op_6056
+loop_op_6013:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_6013
+loop_op_6056:
+sub_ptr 21
+loop_end loop_op_6011
+loop_op_6078:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_6104
+loop_op_6101:
+sub_ptr 2
+loop_end loop_op_6101
+loop_op_6104:
+add_ptr 2
+// %% stack pull param# x
+dec_ptr
+loop_start loop_op_6168
+loop_op_6109:
+inc_ptr
+loop_start loop_op_6114
+loop_op_6111:
+add_ptr 2
+loop_end loop_op_6111
+loop_op_6114:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_6163
+loop_op_6160:
+sub_ptr 2
+loop_end loop_op_6160
+loop_op_6163:
+inc_ptr
+dec_data
+loop_end loop_op_6109
+loop_op_6168:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_6178
+loop_op_6175:
+add_ptr 2
+loop_end loop_op_6175
+loop_op_6178:
+add_ptr 18
+loop_start loop_op_6314
+loop_op_6201:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_6247
+loop_op_6204:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_6204
+loop_op_6247:
+dec_ptr
+loop_start loop_op_6292
+loop_op_6249:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_6249
+loop_op_6292:
+add_ptr 20
+dec_data
+loop_end loop_op_6201
+loop_op_6314:
+inc_ptr
+loop_start loop_op_6329
+loop_op_6316:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_6316
+loop_op_6329:
+dec_ptr
+// %% set slot# x
+// %% grab the y value from the stack
+dec_ptr
+loop_start loop_op_6342
+loop_op_6334:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_6334
+loop_op_6342:
+add_ptr 2
+loop_start loop_op_6352
+loop_op_6345:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_6345
+loop_op_6352:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_6423
+loop_op_6356:
+inc_ptr
+loop_start loop_op_6401
+loop_op_6358:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_6358
+loop_op_6401:
+sub_ptr 21
+loop_end loop_op_6356
+loop_op_6423:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_6449
+loop_op_6446:
+sub_ptr 2
+loop_end loop_op_6446
+loop_op_6449:
+add_ptr 2
+// %% stack pull param# y
+dec_ptr
+loop_start loop_op_6513
+loop_op_6454:
+inc_ptr
+loop_start loop_op_6459
+loop_op_6456:
+add_ptr 2
+loop_end loop_op_6456
+loop_op_6459:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_6508
+loop_op_6505:
+sub_ptr 2
+loop_end loop_op_6505
+loop_op_6508:
+inc_ptr
+dec_data
+loop_end loop_op_6454
+loop_op_6513:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_6523
+loop_op_6520:
+add_ptr 2
+loop_end loop_op_6520
+loop_op_6523:
+add_ptr 18
+loop_start loop_op_6659
+loop_op_6546:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_6592
+loop_op_6549:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_6549
+loop_op_6592:
+dec_ptr
+loop_start loop_op_6637
+loop_op_6594:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_6594
+loop_op_6637:
+add_ptr 20
+dec_data
+loop_end loop_op_6546
+loop_op_6659:
+inc_ptr
+loop_start loop_op_6676
+loop_op_6661:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_6661
+loop_op_6676:
+dec_ptr
+// %% set slot# y
+// %% grab the width value from the stack
+dec_ptr
+loop_start loop_op_6689
+loop_op_6681:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_6681
+loop_op_6689:
+add_ptr 2
+loop_start loop_op_6699
+loop_op_6692:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_6692
+loop_op_6699:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_6770
+loop_op_6703:
+inc_ptr
+loop_start loop_op_6748
+loop_op_6705:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_6705
+loop_op_6748:
+sub_ptr 21
+loop_end loop_op_6703
+loop_op_6770:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_6796
+loop_op_6793:
+sub_ptr 2
+loop_end loop_op_6793
+loop_op_6796:
+add_ptr 2
+// %% stack pull param# width
+dec_ptr
+loop_start loop_op_6860
+loop_op_6801:
+inc_ptr
+loop_start loop_op_6806
+loop_op_6803:
+add_ptr 2
+loop_end loop_op_6803
+loop_op_6806:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_6855
+loop_op_6852:
+sub_ptr 2
+loop_end loop_op_6852
+loop_op_6855:
+inc_ptr
+dec_data
+loop_end loop_op_6801
+loop_op_6860:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_6870
+loop_op_6867:
+add_ptr 2
+loop_end loop_op_6867
+loop_op_6870:
+add_ptr 18
+loop_start loop_op_7006
+loop_op_6893:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_6939
+loop_op_6896:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_6896
+loop_op_6939:
+dec_ptr
+loop_start loop_op_6984
+loop_op_6941:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_6941
+loop_op_6984:
+add_ptr 20
+dec_data
+loop_end loop_op_6893
+loop_op_7006:
+inc_ptr
+loop_start loop_op_7025
+loop_op_7008:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_7008
+loop_op_7025:
+dec_ptr
+// %% set slot# width
+// %% grab the height value from the stack
+dec_ptr
+loop_start loop_op_7038
+loop_op_7030:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_7030
+loop_op_7038:
+add_ptr 2
+loop_start loop_op_7048
+loop_op_7041:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_7041
+loop_op_7048:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_7119
+loop_op_7052:
+inc_ptr
+loop_start loop_op_7097
+loop_op_7054:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_7054
+loop_op_7097:
+sub_ptr 21
+loop_end loop_op_7052
+loop_op_7119:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_7145
+loop_op_7142:
+sub_ptr 2
+loop_end loop_op_7142
+loop_op_7145:
+add_ptr 2
+// %% stack pull param# height
+dec_ptr
+loop_start loop_op_7209
+loop_op_7150:
+inc_ptr
+loop_start loop_op_7155
+loop_op_7152:
+add_ptr 2
+loop_end loop_op_7152
+loop_op_7155:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_7204
+loop_op_7201:
+sub_ptr 2
+loop_end loop_op_7201
+loop_op_7204:
+inc_ptr
+dec_data
+loop_end loop_op_7150
+loop_op_7209:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_7219
+loop_op_7216:
+add_ptr 2
+loop_end loop_op_7216
+loop_op_7219:
+add_ptr 18
+loop_start loop_op_7355
+loop_op_7242:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_7288
+loop_op_7245:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_7245
+loop_op_7288:
+dec_ptr
+loop_start loop_op_7333
+loop_op_7290:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_7290
+loop_op_7333:
+add_ptr 20
+dec_data
+loop_end loop_op_7242
+loop_op_7355:
+inc_ptr
+loop_start loop_op_7376
+loop_op_7357:
+sub_ptr 8
+inc_data
+add_ptr 8
+dec_data
+loop_end loop_op_7357
+loop_op_7376:
+dec_ptr
+// %% set slot# height
+inc_ptr
+loop_end loop_op_5920
+loop_op_7380:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#2 moveTo(x y)                                                                    %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_7401
+loop_op_7391:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_7391
+loop_op_7401:
+add_ptr 3
+loop_start loop_op_7414
+loop_op_7405:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_7405
+loop_op_7414:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 2
+loop_start loop_op_7428
+loop_op_7423:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_7423
+loop_op_7428:
+
+set_data 0
+dec_ptr
+loop_start loop_op_7443
+loop_op_7435:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_7435
+loop_op_7443:
+inc_ptr
+dec_data
+loop_start loop_op_8171
+loop_op_7446:
+set_data 0
+dec_ptr
+// %% IF (function#2)
+// %% grab the x value from the stack
+sub_ptr 4
+set_data 0
+add_ptr 4
+// %% x=0
+dec_ptr
+loop_start loop_op_7474
+loop_op_7466:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_7466
+loop_op_7474:
+add_ptr 2
+loop_start loop_op_7484
+loop_op_7477:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_7477
+loop_op_7484:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_7555
+loop_op_7488:
+inc_ptr
+loop_start loop_op_7533
+loop_op_7490:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_7490
+loop_op_7533:
+sub_ptr 21
+loop_end loop_op_7488
+loop_op_7555:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_7581
+loop_op_7578:
+sub_ptr 2
+loop_end loop_op_7578
+loop_op_7581:
+add_ptr 2
+// %% stack pull param# x
+dec_ptr
+loop_start loop_op_7645
+loop_op_7586:
+inc_ptr
+loop_start loop_op_7591
+loop_op_7588:
+add_ptr 2
+loop_end loop_op_7588
+loop_op_7591:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_7640
+loop_op_7637:
+sub_ptr 2
+loop_end loop_op_7637
+loop_op_7640:
+inc_ptr
+dec_data
+loop_end loop_op_7586
+loop_op_7645:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_7655
+loop_op_7652:
+add_ptr 2
+loop_end loop_op_7652
+loop_op_7655:
+add_ptr 18
+loop_start loop_op_7791
+loop_op_7678:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_7724
+loop_op_7681:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_7681
+loop_op_7724:
+dec_ptr
+loop_start loop_op_7769
+loop_op_7726:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_7726
+loop_op_7769:
+add_ptr 20
+dec_data
+loop_end loop_op_7678
+loop_op_7791:
+inc_ptr
+loop_start loop_op_7806
+loop_op_7793:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_7793
+loop_op_7806:
+dec_ptr
+// %% set slot# x
+// %% grab the y value from the stack
+sub_ptr 5
+set_data 0
+add_ptr 5
+// %% y=0
+dec_ptr
+loop_start loop_op_7833
+loop_op_7825:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_7825
+loop_op_7833:
+add_ptr 2
+loop_start loop_op_7843
+loop_op_7836:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_7836
+loop_op_7843:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_7914
+loop_op_7847:
+inc_ptr
+loop_start loop_op_7892
+loop_op_7849:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_7849
+loop_op_7892:
+sub_ptr 21
+loop_end loop_op_7847
+loop_op_7914:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_7940
+loop_op_7937:
+sub_ptr 2
+loop_end loop_op_7937
+loop_op_7940:
+add_ptr 2
+// %% stack pull param# y
+dec_ptr
+loop_start loop_op_8004
+loop_op_7945:
+inc_ptr
+loop_start loop_op_7950
+loop_op_7947:
+add_ptr 2
+loop_end loop_op_7947
+loop_op_7950:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_7999
+loop_op_7996:
+sub_ptr 2
+loop_end loop_op_7996
+loop_op_7999:
+inc_ptr
+dec_data
+loop_end loop_op_7945
+loop_op_8004:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_8014
+loop_op_8011:
+add_ptr 2
+loop_end loop_op_8011
+loop_op_8014:
+add_ptr 18
+loop_start loop_op_8150
+loop_op_8037:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_8083
+loop_op_8040:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_8040
+loop_op_8083:
+dec_ptr
+loop_start loop_op_8128
+loop_op_8085:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_8085
+loop_op_8128:
+add_ptr 20
+dec_data
+loop_end loop_op_8037
+loop_op_8150:
+inc_ptr
+loop_start loop_op_8167
+loop_op_8152:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_8152
+loop_op_8167:
+dec_ptr
+// %% set slot# y
+inc_ptr
+loop_end loop_op_7446
+loop_op_8171:
+dec_ptr
+// %% END IF (function#2)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#3 rMoveTo(x y)                                                                   %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_8192
+loop_op_8182:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_8182
+loop_op_8192:
+add_ptr 3
+loop_start loop_op_8205
+loop_op_8196:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_8196
+loop_op_8205:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 3
+loop_start loop_op_8220
+loop_op_8215:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_8215
+loop_op_8220:
+
+set_data 0
+dec_ptr
+loop_start loop_op_8235
+loop_op_8227:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_8227
+loop_op_8235:
+inc_ptr
+dec_data
+loop_start loop_op_8937
+loop_op_8238:
+set_data 0
+dec_ptr
+// %% IF (function#3)
+// %% grab the x value from the stack
+dec_ptr
+loop_start loop_op_8254
+loop_op_8246:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_8246
+loop_op_8254:
+add_ptr 2
+loop_start loop_op_8264
+loop_op_8257:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_8257
+loop_op_8264:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_8335
+loop_op_8268:
+inc_ptr
+loop_start loop_op_8313
+loop_op_8270:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_8270
+loop_op_8313:
+sub_ptr 21
+loop_end loop_op_8268
+loop_op_8335:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_8361
+loop_op_8358:
+sub_ptr 2
+loop_end loop_op_8358
+loop_op_8361:
+add_ptr 2
+// %% stack pull param# x
+dec_ptr
+loop_start loop_op_8425
+loop_op_8366:
+inc_ptr
+loop_start loop_op_8371
+loop_op_8368:
+add_ptr 2
+loop_end loop_op_8368
+loop_op_8371:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_8420
+loop_op_8417:
+sub_ptr 2
+loop_end loop_op_8417
+loop_op_8420:
+inc_ptr
+dec_data
+loop_end loop_op_8366
+loop_op_8425:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_8435
+loop_op_8432:
+add_ptr 2
+loop_end loop_op_8432
+loop_op_8435:
+add_ptr 18
+loop_start loop_op_8571
+loop_op_8458:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_8504
+loop_op_8461:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_8461
+loop_op_8504:
+dec_ptr
+loop_start loop_op_8549
+loop_op_8506:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_8506
+loop_op_8549:
+add_ptr 20
+dec_data
+loop_end loop_op_8458
+loop_op_8571:
+inc_ptr
+loop_start loop_op_8586
+loop_op_8573:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_8573
+loop_op_8586:
+dec_ptr
+// %% set slot# x
+// %% grab the y value from the stack
+dec_ptr
+loop_start loop_op_8599
+loop_op_8591:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_8591
+loop_op_8599:
+add_ptr 2
+loop_start loop_op_8609
+loop_op_8602:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_8602
+loop_op_8609:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_8680
+loop_op_8613:
+inc_ptr
+loop_start loop_op_8658
+loop_op_8615:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_8615
+loop_op_8658:
+sub_ptr 21
+loop_end loop_op_8613
+loop_op_8680:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_8706
+loop_op_8703:
+sub_ptr 2
+loop_end loop_op_8703
+loop_op_8706:
+add_ptr 2
+// %% stack pull param# y
+dec_ptr
+loop_start loop_op_8770
+loop_op_8711:
+inc_ptr
+loop_start loop_op_8716
+loop_op_8713:
+add_ptr 2
+loop_end loop_op_8713
+loop_op_8716:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_8765
+loop_op_8762:
+sub_ptr 2
+loop_end loop_op_8762
+loop_op_8765:
+inc_ptr
+dec_data
+loop_end loop_op_8711
+loop_op_8770:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_8780
+loop_op_8777:
+add_ptr 2
+loop_end loop_op_8777
+loop_op_8780:
+add_ptr 18
+loop_start loop_op_8916
+loop_op_8803:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_8849
+loop_op_8806:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_8806
+loop_op_8849:
+dec_ptr
+loop_start loop_op_8894
+loop_op_8851:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_8851
+loop_op_8894:
+add_ptr 20
+dec_data
+loop_end loop_op_8803
+loop_op_8916:
+inc_ptr
+loop_start loop_op_8933
+loop_op_8918:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_8918
+loop_op_8933:
+dec_ptr
+// %% set slot# y
+inc_ptr
+loop_end loop_op_8238
+loop_op_8937:
+dec_ptr
+// %% END IF (function#3)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#5 setWidth(width)                                                                %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_8958
+loop_op_8948:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_8948
+loop_op_8958:
+add_ptr 3
+loop_start loop_op_8971
+loop_op_8962:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_8962
+loop_op_8971:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 5
+loop_start loop_op_8988
+loop_op_8983:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_8983
+loop_op_8988:
+
+set_data 0
+dec_ptr
+loop_start loop_op_9003
+loop_op_8995:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_8995
+loop_op_9003:
+inc_ptr
+dec_data
+loop_start loop_op_9378
+loop_op_9006:
+set_data 0
+dec_ptr
+// %% IF (function#5)
+// %% grab the width value from the stack
+sub_ptr 6
+set_data 0
+add_ptr 6
+// %% width=0
+dec_ptr
+loop_start loop_op_9038
+loop_op_9030:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_9030
+loop_op_9038:
+add_ptr 2
+loop_start loop_op_9048
+loop_op_9041:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_9041
+loop_op_9048:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_9119
+loop_op_9052:
+inc_ptr
+loop_start loop_op_9097
+loop_op_9054:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_9054
+loop_op_9097:
+sub_ptr 21
+loop_end loop_op_9052
+loop_op_9119:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_9145
+loop_op_9142:
+sub_ptr 2
+loop_end loop_op_9142
+loop_op_9145:
+add_ptr 2
+// %% stack pull param# width
+dec_ptr
+loop_start loop_op_9209
+loop_op_9150:
+inc_ptr
+loop_start loop_op_9155
+loop_op_9152:
+add_ptr 2
+loop_end loop_op_9152
+loop_op_9155:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_9204
+loop_op_9201:
+sub_ptr 2
+loop_end loop_op_9201
+loop_op_9204:
+inc_ptr
+dec_data
+loop_end loop_op_9150
+loop_op_9209:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_9219
+loop_op_9216:
+add_ptr 2
+loop_end loop_op_9216
+loop_op_9219:
+add_ptr 18
+loop_start loop_op_9355
+loop_op_9242:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_9288
+loop_op_9245:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_9245
+loop_op_9288:
+dec_ptr
+loop_start loop_op_9333
+loop_op_9290:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_9290
+loop_op_9333:
+add_ptr 20
+dec_data
+loop_end loop_op_9242
+loop_op_9355:
+inc_ptr
+loop_start loop_op_9374
+loop_op_9357:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_9357
+loop_op_9374:
+dec_ptr
+// %% set slot# width
+inc_ptr
+loop_end loop_op_9006
+loop_op_9378:
+dec_ptr
+// %% END IF (function#5)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#6 setHeight(height)                                                              %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_9399
+loop_op_9389:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_9389
+loop_op_9399:
+add_ptr 3
+loop_start loop_op_9412
+loop_op_9403:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_9403
+loop_op_9412:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 6
+loop_start loop_op_9430
+loop_op_9425:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_9425
+loop_op_9430:
+
+set_data 0
+dec_ptr
+loop_start loop_op_9445
+loop_op_9437:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_9437
+loop_op_9445:
+inc_ptr
+dec_data
+loop_start loop_op_9822
+loop_op_9448:
+set_data 0
+dec_ptr
+// %% IF (function#6)
+// %% grab the height value from the stack
+sub_ptr 6
+set_data 0
+add_ptr 6
+// %% height=0
+dec_ptr
+loop_start loop_op_9480
+loop_op_9472:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_9472
+loop_op_9480:
+add_ptr 2
+loop_start loop_op_9490
+loop_op_9483:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_9483
+loop_op_9490:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_9561
+loop_op_9494:
+inc_ptr
+loop_start loop_op_9539
+loop_op_9496:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_9496
+loop_op_9539:
+sub_ptr 21
+loop_end loop_op_9494
+loop_op_9561:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_9587
+loop_op_9584:
+sub_ptr 2
+loop_end loop_op_9584
+loop_op_9587:
+add_ptr 2
+// %% stack pull param# height
+dec_ptr
+loop_start loop_op_9651
+loop_op_9592:
+inc_ptr
+loop_start loop_op_9597
+loop_op_9594:
+add_ptr 2
+loop_end loop_op_9594
+loop_op_9597:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_9646
+loop_op_9643:
+sub_ptr 2
+loop_end loop_op_9643
+loop_op_9646:
+inc_ptr
+dec_data
+loop_end loop_op_9592
+loop_op_9651:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_9661
+loop_op_9658:
+add_ptr 2
+loop_end loop_op_9658
+loop_op_9661:
+add_ptr 18
+loop_start loop_op_9797
+loop_op_9684:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_9730
+loop_op_9687:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_9687
+loop_op_9730:
+dec_ptr
+loop_start loop_op_9775
+loop_op_9732:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_9732
+loop_op_9775:
+add_ptr 20
+dec_data
+loop_end loop_op_9684
+loop_op_9797:
+inc_ptr
+loop_start loop_op_9818
+loop_op_9799:
+sub_ptr 8
+inc_data
+add_ptr 8
+dec_data
+loop_end loop_op_9799
+loop_op_9818:
+dec_ptr
+// %% set slot# height
+inc_ptr
+loop_end loop_op_9448
+loop_op_9822:
+dec_ptr
+// %% END IF (function#5)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#4 draw()                                                                         %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_9843
+loop_op_9833:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_9833
+loop_op_9843:
+add_ptr 3
+loop_start loop_op_9856
+loop_op_9847:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_9847
+loop_op_9856:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 4
+loop_start loop_op_9872
+loop_op_9867:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_9867
+loop_op_9872:
+
+set_data 0
+dec_ptr
+loop_start loop_op_9887
+loop_op_9879:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_9879
+loop_op_9887:
+inc_ptr
+dec_data
+loop_start loop_op_13256
+loop_op_9890:
+set_data 0
+dec_ptr
+// %% IF (function#4)
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_9921
+loop_op_9909:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_9909
+loop_op_9921:
+dec_ptr
+add_data 4
+output
+// %% D
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_9954
+loop_op_9942:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_9942
+loop_op_9954:
+dec_ptr
+add_data 18
+output
+// %% R
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10001
+loop_op_9989:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_9989
+loop_op_10001:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10031
+loop_op_10019:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10019
+loop_op_10031:
+dec_ptr
+add_data 23
+output
+// %% W
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10083
+loop_op_10071:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10071
+loop_op_10083:
+dec_ptr
+add_data 9
+output
+// %% I
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10121
+loop_op_10109:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10109
+loop_op_10121:
+dec_ptr
+add_data 14
+output
+// %% N
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10164
+loop_op_10152:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10152
+loop_op_10164:
+dec_ptr
+add_data 7
+output
+// %% G
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_10195
+loop_op_10185:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_10185
+loop_op_10195:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10226
+loop_op_10214:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10214
+loop_op_10226:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_10251
+loop_op_10241:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_10241
+loop_op_10251:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10282
+loop_op_10270:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10270
+loop_op_10282:
+dec_ptr
+add_data 18
+output
+// %% R
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10329
+loop_op_10317:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10317
+loop_op_10329:
+dec_ptr
+add_data 5
+output
+// %% E
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10363
+loop_op_10351:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10351
+loop_op_10363:
+dec_ptr
+add_data 3
+output
+// %% C
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10395
+loop_op_10383:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10383
+loop_op_10395:
+dec_ptr
+add_data 20
+output
+// %% T
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10444
+loop_op_10432:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10432
+loop_op_10444:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10474
+loop_op_10462:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10462
+loop_op_10474:
+dec_ptr
+add_data 14
+output
+// %% N
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10517
+loop_op_10505:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10505
+loop_op_10517:
+dec_ptr
+add_data 7
+output
+// %% G
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10553
+loop_op_10541:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10541
+loop_op_10553:
+dec_ptr
+add_data 12
+output
+// %% L
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10594
+loop_op_10582:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10582
+loop_op_10594:
+dec_ptr
+add_data 5
+output
+// %% E
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_10623
+loop_op_10613:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_10613
+loop_op_10623:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10654
+loop_op_10642:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10642
+loop_op_10654:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_10684
+loop_op_10672:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10672
+loop_op_10684:
+dec_ptr
+add_data 20
+output
+// %% T
+set_data 0
+// #30#
+inc_ptr
+add_data 7
+loop_start loop_op_10732
+loop_op_10720:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_10720
+loop_op_10732:
+dec_ptr
+add_data 2
+output
+// %% :
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_10760
+loop_op_10749:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_10749
+loop_op_10760:
+dec_ptr
+add_data 254
+output
+// %% (
+set_data 0
+sub_ptr 4
+loop_start loop_op_10787
+loop_op_10773:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_10773
+loop_op_10787:
+add_ptr 4
+loop_start loop_op_10803
+loop_op_10792:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_10792
+loop_op_10803:
+// %% x
+inc_ptr
+loop_start loop_op_11035
+loop_op_10806:
+// %% output number
+loop_start loop_op_10816
+loop_op_10808:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_10808
+loop_op_10816:
+add_ptr 2
+loop_start loop_op_10826
+loop_op_10819:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_10819
+loop_op_10826:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_10889
+loop_op_10840:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_10857
+loop_op_10847:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_10847
+loop_op_10857:
+inc_ptr
+loop_start loop_op_10864
+loop_op_10859:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_10859
+loop_op_10864:
+// %% mod10
+inc_ptr
+loop_start loop_op_10883
+loop_op_10867:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_10867
+loop_op_10883:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_10840
+loop_op_10889:
+add_data 9
+inc_ptr
+loop_start loop_op_10905
+loop_op_10900:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_10900
+loop_op_10905:
+dec_ptr
+loop_start loop_op_10912
+loop_op_10907:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_10907
+loop_op_10912:
+dec_ptr
+loop_start loop_op_10919
+loop_op_10914:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_10914
+loop_op_10919:
+dec_ptr
+loop_start loop_op_10926
+loop_op_10921:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_10921
+loop_op_10926:
+add_ptr 3
+loop_start loop_op_10939
+loop_op_10930:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_10930
+loop_op_10939:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_11005
+loop_op_10953:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_10970
+loop_op_10960:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_10960
+loop_op_10970:
+inc_ptr
+loop_start loop_op_10977
+loop_op_10972:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_10972
+loop_op_10977:
+// %% div10
+inc_ptr
+loop_start loop_op_10999
+loop_op_10980:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_10980
+loop_op_10999:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_10953
+loop_op_11005:
+add_ptr 4
+loop_start loop_op_11021
+loop_op_11010:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_11010
+loop_op_11021:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_10806
+loop_op_11035:
+dec_ptr
+loop_start loop_op_11088
+loop_op_11037:
+loop_start loop_op_11043
+loop_op_11038:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_11038
+loop_op_11043:
+// %% mover
+add_data 7
+loop_start loop_op_11063
+loop_op_11052:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11052
+loop_op_11063:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_11083
+loop_op_11076:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_11076
+loop_op_11083:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_11037
+loop_op_11088:
+set_data 0
+sub_ptr 4
+loop_start loop_op_11110
+loop_op_11096:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_11096
+loop_op_11110:
+add_ptr 5
+loop_start loop_op_11129
+loop_op_11116:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_11116
+loop_op_11129:
+dec_ptr
+// %% get slot# x
+inc_ptr
+set_data 0
+loop_start loop_op_11141
+loop_op_11136:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_11136
+loop_op_11141:
+
+set_data 0
+dec_ptr
+loop_start loop_op_11156
+loop_op_11148:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_11148
+loop_op_11156:
+inc_ptr
+dec_data
+loop_start loop_op_11199
+loop_op_11159:
+set_data 0
+dec_ptr
+// %% IF (x=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_11190
+loop_op_11179:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11179
+loop_op_11190:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_11159
+loop_op_11199:
+dec_ptr
+// %% END IF (x=0)
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_11224
+loop_op_11213:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11213
+loop_op_11224:
+dec_ptr
+add_data 2
+output
+// %% comma
+set_data 0
+sub_ptr 5
+loop_start loop_op_11254
+loop_op_11238:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_11238
+loop_op_11254:
+add_ptr 5
+loop_start loop_op_11273
+loop_op_11260:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_11260
+loop_op_11273:
+// %% y
+inc_ptr
+loop_start loop_op_11505
+loop_op_11276:
+// %% output number
+loop_start loop_op_11286
+loop_op_11278:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_11278
+loop_op_11286:
+add_ptr 2
+loop_start loop_op_11296
+loop_op_11289:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_11289
+loop_op_11296:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_11359
+loop_op_11310:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_11327
+loop_op_11317:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_11317
+loop_op_11327:
+inc_ptr
+loop_start loop_op_11334
+loop_op_11329:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_11329
+loop_op_11334:
+// %% mod10
+inc_ptr
+loop_start loop_op_11353
+loop_op_11337:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_11337
+loop_op_11353:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_11310
+loop_op_11359:
+add_data 9
+inc_ptr
+loop_start loop_op_11375
+loop_op_11370:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_11370
+loop_op_11375:
+dec_ptr
+loop_start loop_op_11382
+loop_op_11377:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_11377
+loop_op_11382:
+dec_ptr
+loop_start loop_op_11389
+loop_op_11384:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_11384
+loop_op_11389:
+dec_ptr
+loop_start loop_op_11396
+loop_op_11391:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_11391
+loop_op_11396:
+add_ptr 3
+loop_start loop_op_11409
+loop_op_11400:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_11400
+loop_op_11409:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_11475
+loop_op_11423:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_11440
+loop_op_11430:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_11430
+loop_op_11440:
+inc_ptr
+loop_start loop_op_11447
+loop_op_11442:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_11442
+loop_op_11447:
+// %% div10
+inc_ptr
+loop_start loop_op_11469
+loop_op_11450:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_11450
+loop_op_11469:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_11423
+loop_op_11475:
+add_ptr 4
+loop_start loop_op_11491
+loop_op_11480:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_11480
+loop_op_11491:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_11276
+loop_op_11505:
+dec_ptr
+loop_start loop_op_11558
+loop_op_11507:
+loop_start loop_op_11513
+loop_op_11508:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_11508
+loop_op_11513:
+// %% mover
+add_data 7
+loop_start loop_op_11533
+loop_op_11522:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11522
+loop_op_11533:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_11553
+loop_op_11546:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_11546
+loop_op_11553:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_11507
+loop_op_11558:
+set_data 0
+sub_ptr 5
+loop_start loop_op_11583
+loop_op_11567:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_11567
+loop_op_11583:
+add_ptr 6
+loop_start loop_op_11605
+loop_op_11590:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_11590
+loop_op_11605:
+dec_ptr
+// %% get slot# y
+inc_ptr
+set_data 0
+loop_start loop_op_11617
+loop_op_11612:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_11612
+loop_op_11617:
+
+set_data 0
+dec_ptr
+loop_start loop_op_11632
+loop_op_11624:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_11624
+loop_op_11632:
+inc_ptr
+dec_data
+loop_start loop_op_11675
+loop_op_11635:
+set_data 0
+dec_ptr
+// %% IF (y=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_11666
+loop_op_11655:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11655
+loop_op_11666:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_11635
+loop_op_11675:
+dec_ptr
+// %% END IF (y=0)
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_11700
+loop_op_11689:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11689
+loop_op_11700:
+dec_ptr
+dec_data
+output
+// %% )
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_11727
+loop_op_11716:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_11716
+loop_op_11727:
+dec_ptr
+add_data 2
+output
+// %% comma
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_11753
+loop_op_11743:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_11743
+loop_op_11753:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_11784
+loop_op_11772:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_11772
+loop_op_11784:
+dec_ptr
+add_data 23
+output
+// %% W
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_11836
+loop_op_11824:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_11824
+loop_op_11836:
+dec_ptr
+add_data 9
+output
+// %% I
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_11874
+loop_op_11862:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_11862
+loop_op_11874:
+dec_ptr
+add_data 4
+output
+// %% D
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_11907
+loop_op_11895:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_11895
+loop_op_11907:
+dec_ptr
+add_data 20
+output
+// %% T
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_11956
+loop_op_11944:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_11944
+loop_op_11956:
+dec_ptr
+add_data 8
+output
+// %% H
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_11988
+loop_op_11978:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_11978
+loop_op_11988:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+sub_ptr 6
+loop_start loop_op_12021
+loop_op_12003:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_12003
+loop_op_12021:
+add_ptr 6
+loop_start loop_op_12043
+loop_op_12028:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_12028
+loop_op_12043:
+// %% width
+inc_ptr
+loop_start loop_op_12275
+loop_op_12046:
+// %% output number
+loop_start loop_op_12056
+loop_op_12048:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_12048
+loop_op_12056:
+add_ptr 2
+loop_start loop_op_12066
+loop_op_12059:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_12059
+loop_op_12066:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_12129
+loop_op_12080:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_12097
+loop_op_12087:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_12087
+loop_op_12097:
+inc_ptr
+loop_start loop_op_12104
+loop_op_12099:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_12099
+loop_op_12104:
+// %% mod10
+inc_ptr
+loop_start loop_op_12123
+loop_op_12107:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_12107
+loop_op_12123:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_12080
+loop_op_12129:
+add_data 9
+inc_ptr
+loop_start loop_op_12145
+loop_op_12140:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_12140
+loop_op_12145:
+dec_ptr
+loop_start loop_op_12152
+loop_op_12147:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12147
+loop_op_12152:
+dec_ptr
+loop_start loop_op_12159
+loop_op_12154:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12154
+loop_op_12159:
+dec_ptr
+loop_start loop_op_12166
+loop_op_12161:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12161
+loop_op_12166:
+add_ptr 3
+loop_start loop_op_12179
+loop_op_12170:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_12170
+loop_op_12179:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_12245
+loop_op_12193:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_12210
+loop_op_12200:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_12200
+loop_op_12210:
+inc_ptr
+loop_start loop_op_12217
+loop_op_12212:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_12212
+loop_op_12217:
+// %% div10
+inc_ptr
+loop_start loop_op_12239
+loop_op_12220:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12220
+loop_op_12239:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_12193
+loop_op_12245:
+add_ptr 4
+loop_start loop_op_12261
+loop_op_12250:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_12250
+loop_op_12261:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_12046
+loop_op_12275:
+dec_ptr
+loop_start loop_op_12328
+loop_op_12277:
+loop_start loop_op_12283
+loop_op_12278:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12278
+loop_op_12283:
+// %% mover
+add_data 7
+loop_start loop_op_12303
+loop_op_12292:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_12292
+loop_op_12303:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_12323
+loop_op_12316:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_12316
+loop_op_12323:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_12277
+loop_op_12328:
+set_data 0
+sub_ptr 6
+loop_start loop_op_12356
+loop_op_12338:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_12338
+loop_op_12356:
+add_ptr 7
+loop_start loop_op_12381
+loop_op_12364:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_12364
+loop_op_12381:
+dec_ptr
+// %% get slot# width
+inc_ptr
+set_data 0
+loop_start loop_op_12393
+loop_op_12388:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_12388
+loop_op_12393:
+
+set_data 0
+dec_ptr
+loop_start loop_op_12408
+loop_op_12400:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_12400
+loop_op_12408:
+inc_ptr
+dec_data
+loop_start loop_op_12451
+loop_op_12411:
+set_data 0
+dec_ptr
+// %% IF (width=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_12442
+loop_op_12431:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_12431
+loop_op_12442:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_12411
+loop_op_12451:
+dec_ptr
+// %% END IF (width=0)
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_12476
+loop_op_12465:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_12465
+loop_op_12476:
+dec_ptr
+add_data 2
+output
+// %% comma
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_12502
+loop_op_12492:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_12492
+loop_op_12502:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_12533
+loop_op_12521:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_12521
+loop_op_12533:
+dec_ptr
+add_data 8
+output
+// %% H
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_12570
+loop_op_12558:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_12558
+loop_op_12570:
+dec_ptr
+add_data 5
+output
+// %% E
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_12604
+loop_op_12592:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_12592
+loop_op_12604:
+dec_ptr
+add_data 9
+output
+// %% I
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_12642
+loop_op_12630:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_12630
+loop_op_12642:
+dec_ptr
+add_data 7
+output
+// %% G
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_12678
+loop_op_12666:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_12666
+loop_op_12678:
+dec_ptr
+add_data 8
+output
+// %% H
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_12715
+loop_op_12703:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_12703
+loop_op_12715:
+dec_ptr
+add_data 20
+output
+// %% T
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_12759
+loop_op_12749:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_12749
+loop_op_12759:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+sub_ptr 7
+loop_start loop_op_12795
+loop_op_12775:
+add_ptr 7
+inc_data
+inc_ptr
+inc_data
+sub_ptr 8
+dec_data
+loop_end loop_op_12775
+loop_op_12795:
+add_ptr 7
+loop_start loop_op_12820
+loop_op_12803:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_12803
+loop_op_12820:
+// %% width
+inc_ptr
+loop_start loop_op_13052
+loop_op_12823:
+// %% output number
+loop_start loop_op_12833
+loop_op_12825:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_12825
+loop_op_12833:
+add_ptr 2
+loop_start loop_op_12843
+loop_op_12836:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_12836
+loop_op_12843:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_12906
+loop_op_12857:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_12874
+loop_op_12864:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_12864
+loop_op_12874:
+inc_ptr
+loop_start loop_op_12881
+loop_op_12876:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_12876
+loop_op_12881:
+// %% mod10
+inc_ptr
+loop_start loop_op_12900
+loop_op_12884:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_12884
+loop_op_12900:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_12857
+loop_op_12906:
+add_data 9
+inc_ptr
+loop_start loop_op_12922
+loop_op_12917:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_12917
+loop_op_12922:
+dec_ptr
+loop_start loop_op_12929
+loop_op_12924:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12924
+loop_op_12929:
+dec_ptr
+loop_start loop_op_12936
+loop_op_12931:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12931
+loop_op_12936:
+dec_ptr
+loop_start loop_op_12943
+loop_op_12938:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12938
+loop_op_12943:
+add_ptr 3
+loop_start loop_op_12956
+loop_op_12947:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_12947
+loop_op_12956:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_13022
+loop_op_12970:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_12987
+loop_op_12977:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_12977
+loop_op_12987:
+inc_ptr
+loop_start loop_op_12994
+loop_op_12989:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_12989
+loop_op_12994:
+// %% div10
+inc_ptr
+loop_start loop_op_13016
+loop_op_12997:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_12997
+loop_op_13016:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_12970
+loop_op_13022:
+add_ptr 4
+loop_start loop_op_13038
+loop_op_13027:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_13027
+loop_op_13038:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_12823
+loop_op_13052:
+dec_ptr
+loop_start loop_op_13105
+loop_op_13054:
+loop_start loop_op_13060
+loop_op_13055:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_13055
+loop_op_13060:
+// %% mover
+add_data 7
+loop_start loop_op_13080
+loop_op_13069:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_13069
+loop_op_13080:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_13100
+loop_op_13093:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_13093
+loop_op_13100:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_13054
+loop_op_13105:
+set_data 0
+sub_ptr 7
+loop_start loop_op_13136
+loop_op_13116:
+add_ptr 7
+inc_data
+inc_ptr
+inc_data
+sub_ptr 8
+dec_data
+loop_end loop_op_13116
+loop_op_13136:
+add_ptr 8
+loop_start loop_op_13164
+loop_op_13145:
+sub_ptr 8
+inc_data
+add_ptr 8
+dec_data
+loop_end loop_op_13145
+loop_op_13164:
+dec_ptr
+// %% get slot# height
+inc_ptr
+set_data 0
+loop_start loop_op_13176
+loop_op_13171:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_13171
+loop_op_13176:
+
+set_data 0
+dec_ptr
+loop_start loop_op_13191
+loop_op_13183:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_13183
+loop_op_13191:
+inc_ptr
+dec_data
+loop_start loop_op_13234
+loop_op_13194:
+set_data 0
+dec_ptr
+// %% IF (height=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_13225
+loop_op_13214:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_13214
+loop_op_13225:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_13194
+loop_op_13234:
+dec_ptr
+// %% END IF (height=0)
+set_data 10
+output
+set_data 0
+// %% \n
+inc_ptr
+loop_end loop_op_9890
+loop_op_13256:
+dec_ptr
+// %% END IF (function#4)
+inc_ptr
+loop_end loop_op_5852
+loop_op_13260:
+dec_ptr
+// %% END IF (class#2)
+// ================================================================================================
+// = circle class                                                                                 =
+// ================================================================================================
+set_data 0
+sub_ptr 3
+loop_start loop_op_13284
+loop_op_13272:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_13272
+loop_op_13284:
+add_ptr 4
+loop_start loop_op_13300
+loop_op_13289:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_13289
+loop_op_13300:
+dec_ptr
+// %% get class#
+inc_ptr
+set_data 2
+loop_start loop_op_13314
+loop_op_13309:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_13309
+loop_op_13314:
+
+set_data 0
+dec_ptr
+loop_start loop_op_13329
+loop_op_13321:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_13321
+loop_op_13329:
+inc_ptr
+dec_data
+loop_start loop_op_19059
+loop_op_13332:
+set_data 0
+dec_ptr
+// %% IF (class#2)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#1 circle(x y radius)                                                             %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_13356
+loop_op_13346:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_13346
+loop_op_13356:
+add_ptr 3
+loop_start loop_op_13369
+loop_op_13360:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_13360
+loop_op_13369:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 1
+loop_start loop_op_13382
+loop_op_13377:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_13377
+loop_op_13382:
+
+set_data 0
+dec_ptr
+loop_start loop_op_13397
+loop_op_13389:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_13389
+loop_op_13397:
+inc_ptr
+dec_data
+loop_start loop_op_14491
+loop_op_13400:
+set_data 0
+dec_ptr
+// %% IF (function#1)
+// %% clear the slots
+sub_ptr 4
+set_data 0
+add_ptr 4
+// %% x=0
+sub_ptr 5
+set_data 0
+add_ptr 5
+// %% y=0
+sub_ptr 6
+set_data 0
+add_ptr 6
+// %% radius=0
+// %% grab the x value from the stack
+dec_ptr
+loop_start loop_op_13459
+loop_op_13451:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_13451
+loop_op_13459:
+add_ptr 2
+loop_start loop_op_13469
+loop_op_13462:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_13462
+loop_op_13469:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_13540
+loop_op_13473:
+inc_ptr
+loop_start loop_op_13518
+loop_op_13475:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_13475
+loop_op_13518:
+sub_ptr 21
+loop_end loop_op_13473
+loop_op_13540:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_13566
+loop_op_13563:
+sub_ptr 2
+loop_end loop_op_13563
+loop_op_13566:
+add_ptr 2
+// %% stack pull param# x
+dec_ptr
+loop_start loop_op_13630
+loop_op_13571:
+inc_ptr
+loop_start loop_op_13576
+loop_op_13573:
+add_ptr 2
+loop_end loop_op_13573
+loop_op_13576:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_13625
+loop_op_13622:
+sub_ptr 2
+loop_end loop_op_13622
+loop_op_13625:
+inc_ptr
+dec_data
+loop_end loop_op_13571
+loop_op_13630:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_13640
+loop_op_13637:
+add_ptr 2
+loop_end loop_op_13637
+loop_op_13640:
+add_ptr 18
+loop_start loop_op_13776
+loop_op_13663:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_13709
+loop_op_13666:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_13666
+loop_op_13709:
+dec_ptr
+loop_start loop_op_13754
+loop_op_13711:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_13711
+loop_op_13754:
+add_ptr 20
+dec_data
+loop_end loop_op_13663
+loop_op_13776:
+inc_ptr
+loop_start loop_op_13791
+loop_op_13778:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_13778
+loop_op_13791:
+dec_ptr
+// %% set slot# x
+// %% grab the y value from the stack
+dec_ptr
+loop_start loop_op_13804
+loop_op_13796:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_13796
+loop_op_13804:
+add_ptr 2
+loop_start loop_op_13814
+loop_op_13807:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_13807
+loop_op_13814:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_13885
+loop_op_13818:
+inc_ptr
+loop_start loop_op_13863
+loop_op_13820:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_13820
+loop_op_13863:
+sub_ptr 21
+loop_end loop_op_13818
+loop_op_13885:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_13911
+loop_op_13908:
+sub_ptr 2
+loop_end loop_op_13908
+loop_op_13911:
+add_ptr 2
+// %% stack pull param# y
+dec_ptr
+loop_start loop_op_13975
+loop_op_13916:
+inc_ptr
+loop_start loop_op_13921
+loop_op_13918:
+add_ptr 2
+loop_end loop_op_13918
+loop_op_13921:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_13970
+loop_op_13967:
+sub_ptr 2
+loop_end loop_op_13967
+loop_op_13970:
+inc_ptr
+dec_data
+loop_end loop_op_13916
+loop_op_13975:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_13985
+loop_op_13982:
+add_ptr 2
+loop_end loop_op_13982
+loop_op_13985:
+add_ptr 18
+loop_start loop_op_14121
+loop_op_14008:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_14054
+loop_op_14011:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_14011
+loop_op_14054:
+dec_ptr
+loop_start loop_op_14099
+loop_op_14056:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_14056
+loop_op_14099:
+add_ptr 20
+dec_data
+loop_end loop_op_14008
+loop_op_14121:
+inc_ptr
+loop_start loop_op_14138
+loop_op_14123:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_14123
+loop_op_14138:
+dec_ptr
+// %% set slot# y
+// %% grab the radius value from the stack
+dec_ptr
+loop_start loop_op_14151
+loop_op_14143:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_14143
+loop_op_14151:
+add_ptr 2
+loop_start loop_op_14161
+loop_op_14154:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_14154
+loop_op_14161:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_14232
+loop_op_14165:
+inc_ptr
+loop_start loop_op_14210
+loop_op_14167:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_14167
+loop_op_14210:
+sub_ptr 21
+loop_end loop_op_14165
+loop_op_14232:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_14258
+loop_op_14255:
+sub_ptr 2
+loop_end loop_op_14255
+loop_op_14258:
+add_ptr 2
+// %% stack pull param# radius
+dec_ptr
+loop_start loop_op_14322
+loop_op_14263:
+inc_ptr
+loop_start loop_op_14268
+loop_op_14265:
+add_ptr 2
+loop_end loop_op_14265
+loop_op_14268:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_14317
+loop_op_14314:
+sub_ptr 2
+loop_end loop_op_14314
+loop_op_14317:
+inc_ptr
+dec_data
+loop_end loop_op_14263
+loop_op_14322:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_14332
+loop_op_14329:
+add_ptr 2
+loop_end loop_op_14329
+loop_op_14332:
+add_ptr 18
+loop_start loop_op_14468
+loop_op_14355:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_14401
+loop_op_14358:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_14358
+loop_op_14401:
+dec_ptr
+loop_start loop_op_14446
+loop_op_14403:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_14403
+loop_op_14446:
+add_ptr 20
+dec_data
+loop_end loop_op_14355
+loop_op_14468:
+inc_ptr
+loop_start loop_op_14487
+loop_op_14470:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_14470
+loop_op_14487:
+dec_ptr
+// %% set slot# radius
+inc_ptr
+loop_end loop_op_13400
+loop_op_14491:
+dec_ptr
+// %% END IF (function#1)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#2 moveTo(x y)                                                                    %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_14512
+loop_op_14502:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_14502
+loop_op_14512:
+add_ptr 3
+loop_start loop_op_14525
+loop_op_14516:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_14516
+loop_op_14525:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 2
+loop_start loop_op_14539
+loop_op_14534:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_14534
+loop_op_14539:
+
+set_data 0
+dec_ptr
+loop_start loop_op_14554
+loop_op_14546:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_14546
+loop_op_14554:
+inc_ptr
+dec_data
+loop_start loop_op_15282
+loop_op_14557:
+set_data 0
+dec_ptr
+// %% IF (function#2)
+// %% grab the x value from the stack
+sub_ptr 4
+set_data 0
+add_ptr 4
+// %% x=0
+dec_ptr
+loop_start loop_op_14585
+loop_op_14577:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_14577
+loop_op_14585:
+add_ptr 2
+loop_start loop_op_14595
+loop_op_14588:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_14588
+loop_op_14595:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_14666
+loop_op_14599:
+inc_ptr
+loop_start loop_op_14644
+loop_op_14601:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_14601
+loop_op_14644:
+sub_ptr 21
+loop_end loop_op_14599
+loop_op_14666:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_14692
+loop_op_14689:
+sub_ptr 2
+loop_end loop_op_14689
+loop_op_14692:
+add_ptr 2
+// %% stack pull param# x
+dec_ptr
+loop_start loop_op_14756
+loop_op_14697:
+inc_ptr
+loop_start loop_op_14702
+loop_op_14699:
+add_ptr 2
+loop_end loop_op_14699
+loop_op_14702:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_14751
+loop_op_14748:
+sub_ptr 2
+loop_end loop_op_14748
+loop_op_14751:
+inc_ptr
+dec_data
+loop_end loop_op_14697
+loop_op_14756:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_14766
+loop_op_14763:
+add_ptr 2
+loop_end loop_op_14763
+loop_op_14766:
+add_ptr 18
+loop_start loop_op_14902
+loop_op_14789:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_14835
+loop_op_14792:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_14792
+loop_op_14835:
+dec_ptr
+loop_start loop_op_14880
+loop_op_14837:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_14837
+loop_op_14880:
+add_ptr 20
+dec_data
+loop_end loop_op_14789
+loop_op_14902:
+inc_ptr
+loop_start loop_op_14917
+loop_op_14904:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_14904
+loop_op_14917:
+dec_ptr
+// %% set slot# x
+// %% grab the y value from the stack
+sub_ptr 5
+set_data 0
+add_ptr 5
+// %% y=0
+dec_ptr
+loop_start loop_op_14944
+loop_op_14936:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_14936
+loop_op_14944:
+add_ptr 2
+loop_start loop_op_14954
+loop_op_14947:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_14947
+loop_op_14954:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_15025
+loop_op_14958:
+inc_ptr
+loop_start loop_op_15003
+loop_op_14960:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_14960
+loop_op_15003:
+sub_ptr 21
+loop_end loop_op_14958
+loop_op_15025:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_15051
+loop_op_15048:
+sub_ptr 2
+loop_end loop_op_15048
+loop_op_15051:
+add_ptr 2
+// %% stack pull param# y
+dec_ptr
+loop_start loop_op_15115
+loop_op_15056:
+inc_ptr
+loop_start loop_op_15061
+loop_op_15058:
+add_ptr 2
+loop_end loop_op_15058
+loop_op_15061:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_15110
+loop_op_15107:
+sub_ptr 2
+loop_end loop_op_15107
+loop_op_15110:
+inc_ptr
+dec_data
+loop_end loop_op_15056
+loop_op_15115:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_15125
+loop_op_15122:
+add_ptr 2
+loop_end loop_op_15122
+loop_op_15125:
+add_ptr 18
+loop_start loop_op_15261
+loop_op_15148:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_15194
+loop_op_15151:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_15151
+loop_op_15194:
+dec_ptr
+loop_start loop_op_15239
+loop_op_15196:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_15196
+loop_op_15239:
+add_ptr 20
+dec_data
+loop_end loop_op_15148
+loop_op_15261:
+inc_ptr
+loop_start loop_op_15278
+loop_op_15263:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_15263
+loop_op_15278:
+dec_ptr
+// %% set slot# y
+inc_ptr
+loop_end loop_op_14557
+loop_op_15282:
+dec_ptr
+// %% END IF (function#2)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#3 rMoveTo(x y)                                                                   %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_15303
+loop_op_15293:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_15293
+loop_op_15303:
+add_ptr 3
+loop_start loop_op_15316
+loop_op_15307:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_15307
+loop_op_15316:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 3
+loop_start loop_op_15331
+loop_op_15326:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_15326
+loop_op_15331:
+
+set_data 0
+dec_ptr
+loop_start loop_op_15346
+loop_op_15338:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_15338
+loop_op_15346:
+inc_ptr
+dec_data
+loop_start loop_op_16048
+loop_op_15349:
+set_data 0
+dec_ptr
+// %% IF (function#3)
+// %% grab the x value from the stack
+dec_ptr
+loop_start loop_op_15365
+loop_op_15357:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_15357
+loop_op_15365:
+add_ptr 2
+loop_start loop_op_15375
+loop_op_15368:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_15368
+loop_op_15375:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_15446
+loop_op_15379:
+inc_ptr
+loop_start loop_op_15424
+loop_op_15381:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_15381
+loop_op_15424:
+sub_ptr 21
+loop_end loop_op_15379
+loop_op_15446:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_15472
+loop_op_15469:
+sub_ptr 2
+loop_end loop_op_15469
+loop_op_15472:
+add_ptr 2
+// %% stack pull param# x
+dec_ptr
+loop_start loop_op_15536
+loop_op_15477:
+inc_ptr
+loop_start loop_op_15482
+loop_op_15479:
+add_ptr 2
+loop_end loop_op_15479
+loop_op_15482:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_15531
+loop_op_15528:
+sub_ptr 2
+loop_end loop_op_15528
+loop_op_15531:
+inc_ptr
+dec_data
+loop_end loop_op_15477
+loop_op_15536:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_15546
+loop_op_15543:
+add_ptr 2
+loop_end loop_op_15543
+loop_op_15546:
+add_ptr 18
+loop_start loop_op_15682
+loop_op_15569:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_15615
+loop_op_15572:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_15572
+loop_op_15615:
+dec_ptr
+loop_start loop_op_15660
+loop_op_15617:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_15617
+loop_op_15660:
+add_ptr 20
+dec_data
+loop_end loop_op_15569
+loop_op_15682:
+inc_ptr
+loop_start loop_op_15697
+loop_op_15684:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_15684
+loop_op_15697:
+dec_ptr
+// %% set slot# x
+// %% grab the y value from the stack
+dec_ptr
+loop_start loop_op_15710
+loop_op_15702:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_15702
+loop_op_15710:
+add_ptr 2
+loop_start loop_op_15720
+loop_op_15713:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_15713
+loop_op_15720:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_15791
+loop_op_15724:
+inc_ptr
+loop_start loop_op_15769
+loop_op_15726:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_15726
+loop_op_15769:
+sub_ptr 21
+loop_end loop_op_15724
+loop_op_15791:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_15817
+loop_op_15814:
+sub_ptr 2
+loop_end loop_op_15814
+loop_op_15817:
+add_ptr 2
+// %% stack pull param# y
+dec_ptr
+loop_start loop_op_15881
+loop_op_15822:
+inc_ptr
+loop_start loop_op_15827
+loop_op_15824:
+add_ptr 2
+loop_end loop_op_15824
+loop_op_15827:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_15876
+loop_op_15873:
+sub_ptr 2
+loop_end loop_op_15873
+loop_op_15876:
+inc_ptr
+dec_data
+loop_end loop_op_15822
+loop_op_15881:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_15891
+loop_op_15888:
+add_ptr 2
+loop_end loop_op_15888
+loop_op_15891:
+add_ptr 18
+loop_start loop_op_16027
+loop_op_15914:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_15960
+loop_op_15917:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_15917
+loop_op_15960:
+dec_ptr
+loop_start loop_op_16005
+loop_op_15962:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_15962
+loop_op_16005:
+add_ptr 20
+dec_data
+loop_end loop_op_15914
+loop_op_16027:
+inc_ptr
+loop_start loop_op_16044
+loop_op_16029:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_16029
+loop_op_16044:
+dec_ptr
+// %% set slot# y
+inc_ptr
+loop_end loop_op_15349
+loop_op_16048:
+dec_ptr
+// %% END IF (function#3)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#5 setRadius(radius)                                                              %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_16069
+loop_op_16059:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_16059
+loop_op_16069:
+add_ptr 3
+loop_start loop_op_16082
+loop_op_16073:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_16073
+loop_op_16082:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 5
+loop_start loop_op_16099
+loop_op_16094:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_16094
+loop_op_16099:
+
+set_data 0
+dec_ptr
+loop_start loop_op_16114
+loop_op_16106:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_16106
+loop_op_16114:
+inc_ptr
+dec_data
+loop_start loop_op_16489
+loop_op_16117:
+set_data 0
+dec_ptr
+// %% IF (function#5)
+// %% grab the radius value from the stack
+sub_ptr 6
+set_data 0
+add_ptr 6
+// %% radius=0
+dec_ptr
+loop_start loop_op_16149
+loop_op_16141:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_16141
+loop_op_16149:
+add_ptr 2
+loop_start loop_op_16159
+loop_op_16152:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_16152
+loop_op_16159:
+dec_ptr
+// %% get object#
+dec_ptr
+loop_start loop_op_16230
+loop_op_16163:
+inc_ptr
+loop_start loop_op_16208
+loop_op_16165:
+sub_ptr 20
+inc_data
+add_ptr 20
+dec_data
+loop_end loop_op_16165
+loop_op_16208:
+sub_ptr 21
+loop_end loop_op_16163
+loop_op_16230:
+inc_ptr
+// %% walk back to root object (drag object#)
+sub_ptr 20
+loop_start loop_op_16256
+loop_op_16253:
+sub_ptr 2
+loop_end loop_op_16253
+loop_op_16256:
+add_ptr 2
+// %% stack pull param# radius
+dec_ptr
+loop_start loop_op_16320
+loop_op_16261:
+inc_ptr
+loop_start loop_op_16266
+loop_op_16263:
+add_ptr 2
+loop_end loop_op_16263
+loop_op_16266:
+add_ptr 19
+inc_data
+sub_ptr 21
+loop_start loop_op_16315
+loop_op_16312:
+sub_ptr 2
+loop_end loop_op_16312
+loop_op_16315:
+inc_ptr
+dec_data
+loop_end loop_op_16261
+loop_op_16320:
+inc_ptr
+set_data 0
+add_ptr 2
+loop_start loop_op_16330
+loop_op_16327:
+add_ptr 2
+loop_end loop_op_16327
+loop_op_16330:
+add_ptr 18
+loop_start loop_op_16466
+loop_op_16353:
+// %% walk to object#n (drag param# & object index)
+inc_ptr
+loop_start loop_op_16399
+loop_op_16356:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_16356
+loop_op_16399:
+dec_ptr
+loop_start loop_op_16444
+loop_op_16401:
+add_ptr 20
+inc_data
+sub_ptr 20
+dec_data
+loop_end loop_op_16401
+loop_op_16444:
+add_ptr 20
+dec_data
+loop_end loop_op_16353
+loop_op_16466:
+inc_ptr
+loop_start loop_op_16485
+loop_op_16468:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_16468
+loop_op_16485:
+dec_ptr
+// %% set slot# radius
+inc_ptr
+loop_end loop_op_16117
+loop_op_16489:
+dec_ptr
+// %% END IF (function#5)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// % function#4 draw()                                                                         %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+set_data 0
+sub_ptr 2
+loop_start loop_op_16510
+loop_op_16500:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_16500
+loop_op_16510:
+add_ptr 3
+loop_start loop_op_16523
+loop_op_16514:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_16514
+loop_op_16523:
+dec_ptr
+// %% get function#
+inc_ptr
+set_data 4
+loop_start loop_op_16539
+loop_op_16534:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_16534
+loop_op_16539:
+
+set_data 0
+dec_ptr
+loop_start loop_op_16554
+loop_op_16546:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_16546
+loop_op_16554:
+inc_ptr
+dec_data
+loop_start loop_op_19055
+loop_op_16557:
+set_data 0
+dec_ptr
+// %% IF (function#4)
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16588
+loop_op_16576:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16576
+loop_op_16588:
+dec_ptr
+add_data 4
+output
+// %% D
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16621
+loop_op_16609:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16609
+loop_op_16621:
+dec_ptr
+add_data 18
+output
+// %% R
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16668
+loop_op_16656:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16656
+loop_op_16668:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16698
+loop_op_16686:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16686
+loop_op_16698:
+dec_ptr
+add_data 23
+output
+// %% W
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16750
+loop_op_16738:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16738
+loop_op_16750:
+dec_ptr
+add_data 9
+output
+// %% I
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16788
+loop_op_16776:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16776
+loop_op_16788:
+dec_ptr
+add_data 14
+output
+// %% N
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16831
+loop_op_16819:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16819
+loop_op_16831:
+dec_ptr
+add_data 7
+output
+// %% G
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_16862
+loop_op_16852:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_16852
+loop_op_16862:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16893
+loop_op_16881:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16881
+loop_op_16893:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_16918
+loop_op_16908:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_16908
+loop_op_16918:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16949
+loop_op_16937:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16937
+loop_op_16949:
+dec_ptr
+add_data 3
+output
+// %% C
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_16981
+loop_op_16969:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_16969
+loop_op_16981:
+dec_ptr
+add_data 9
+output
+// %% I
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_17019
+loop_op_17007:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17007
+loop_op_17019:
+dec_ptr
+add_data 18
+output
+// %% R
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_17066
+loop_op_17054:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17054
+loop_op_17066:
+dec_ptr
+add_data 3
+output
+// %% C
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_17098
+loop_op_17086:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17086
+loop_op_17098:
+dec_ptr
+add_data 12
+output
+// %% L
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_17139
+loop_op_17127:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17127
+loop_op_17139:
+dec_ptr
+add_data 5
+output
+// %% E
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_17168
+loop_op_17158:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_17158
+loop_op_17168:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_17199
+loop_op_17187:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17187
+loop_op_17199:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_17229
+loop_op_17217:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17217
+loop_op_17229:
+dec_ptr
+add_data 20
+output
+// %% T
+set_data 0
+// #30#
+inc_ptr
+add_data 7
+loop_start loop_op_17277
+loop_op_17265:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_17265
+loop_op_17277:
+dec_ptr
+add_data 2
+output
+// %% :
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_17305
+loop_op_17294:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_17294
+loop_op_17305:
+dec_ptr
+add_data 254
+output
+// %% (
+set_data 0
+sub_ptr 4
+loop_start loop_op_17332
+loop_op_17318:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_17318
+loop_op_17332:
+add_ptr 4
+loop_start loop_op_17348
+loop_op_17337:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_17337
+loop_op_17348:
+// %% x
+inc_ptr
+loop_start loop_op_17580
+loop_op_17351:
+// %% output number
+loop_start loop_op_17361
+loop_op_17353:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_17353
+loop_op_17361:
+add_ptr 2
+loop_start loop_op_17371
+loop_op_17364:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_17364
+loop_op_17371:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_17434
+loop_op_17385:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_17402
+loop_op_17392:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_17392
+loop_op_17402:
+inc_ptr
+loop_start loop_op_17409
+loop_op_17404:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_17404
+loop_op_17409:
+// %% mod10
+inc_ptr
+loop_start loop_op_17428
+loop_op_17412:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_17412
+loop_op_17428:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_17385
+loop_op_17434:
+add_data 9
+inc_ptr
+loop_start loop_op_17450
+loop_op_17445:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_17445
+loop_op_17450:
+dec_ptr
+loop_start loop_op_17457
+loop_op_17452:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17452
+loop_op_17457:
+dec_ptr
+loop_start loop_op_17464
+loop_op_17459:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17459
+loop_op_17464:
+dec_ptr
+loop_start loop_op_17471
+loop_op_17466:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17466
+loop_op_17471:
+add_ptr 3
+loop_start loop_op_17484
+loop_op_17475:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_17475
+loop_op_17484:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_17550
+loop_op_17498:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_17515
+loop_op_17505:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_17505
+loop_op_17515:
+inc_ptr
+loop_start loop_op_17522
+loop_op_17517:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_17517
+loop_op_17522:
+// %% div10
+inc_ptr
+loop_start loop_op_17544
+loop_op_17525:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17525
+loop_op_17544:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_17498
+loop_op_17550:
+add_ptr 4
+loop_start loop_op_17566
+loop_op_17555:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_17555
+loop_op_17566:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_17351
+loop_op_17580:
+dec_ptr
+loop_start loop_op_17633
+loop_op_17582:
+loop_start loop_op_17588
+loop_op_17583:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17583
+loop_op_17588:
+// %% mover
+add_data 7
+loop_start loop_op_17608
+loop_op_17597:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_17597
+loop_op_17608:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_17628
+loop_op_17621:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_17621
+loop_op_17628:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_17582
+loop_op_17633:
+set_data 0
+sub_ptr 4
+loop_start loop_op_17655
+loop_op_17641:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_17641
+loop_op_17655:
+add_ptr 5
+loop_start loop_op_17674
+loop_op_17661:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_17661
+loop_op_17674:
+dec_ptr
+// %% get slot# x
+inc_ptr
+set_data 0
+loop_start loop_op_17686
+loop_op_17681:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_17681
+loop_op_17686:
+
+set_data 0
+dec_ptr
+loop_start loop_op_17701
+loop_op_17693:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_17693
+loop_op_17701:
+inc_ptr
+dec_data
+loop_start loop_op_17744
+loop_op_17704:
+set_data 0
+dec_ptr
+// %% IF (x=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_17735
+loop_op_17724:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_17724
+loop_op_17735:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_17704
+loop_op_17744:
+dec_ptr
+// %% END IF (x=0)
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_17769
+loop_op_17758:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_17758
+loop_op_17769:
+dec_ptr
+add_data 2
+output
+// %% comma
+set_data 0
+sub_ptr 5
+loop_start loop_op_17799
+loop_op_17783:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_17783
+loop_op_17799:
+add_ptr 5
+loop_start loop_op_17818
+loop_op_17805:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_17805
+loop_op_17818:
+// %% y
+inc_ptr
+loop_start loop_op_18050
+loop_op_17821:
+// %% output number
+loop_start loop_op_17831
+loop_op_17823:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_17823
+loop_op_17831:
+add_ptr 2
+loop_start loop_op_17841
+loop_op_17834:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_17834
+loop_op_17841:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_17904
+loop_op_17855:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_17872
+loop_op_17862:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_17862
+loop_op_17872:
+inc_ptr
+loop_start loop_op_17879
+loop_op_17874:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_17874
+loop_op_17879:
+// %% mod10
+inc_ptr
+loop_start loop_op_17898
+loop_op_17882:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_17882
+loop_op_17898:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_17855
+loop_op_17904:
+add_data 9
+inc_ptr
+loop_start loop_op_17920
+loop_op_17915:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_17915
+loop_op_17920:
+dec_ptr
+loop_start loop_op_17927
+loop_op_17922:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17922
+loop_op_17927:
+dec_ptr
+loop_start loop_op_17934
+loop_op_17929:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17929
+loop_op_17934:
+dec_ptr
+loop_start loop_op_17941
+loop_op_17936:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17936
+loop_op_17941:
+add_ptr 3
+loop_start loop_op_17954
+loop_op_17945:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_17945
+loop_op_17954:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_18020
+loop_op_17968:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_17985
+loop_op_17975:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_17975
+loop_op_17985:
+inc_ptr
+loop_start loop_op_17992
+loop_op_17987:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_17987
+loop_op_17992:
+// %% div10
+inc_ptr
+loop_start loop_op_18014
+loop_op_17995:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_17995
+loop_op_18014:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_17968
+loop_op_18020:
+add_ptr 4
+loop_start loop_op_18036
+loop_op_18025:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_18025
+loop_op_18036:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_17821
+loop_op_18050:
+dec_ptr
+loop_start loop_op_18103
+loop_op_18052:
+loop_start loop_op_18058
+loop_op_18053:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_18053
+loop_op_18058:
+// %% mover
+add_data 7
+loop_start loop_op_18078
+loop_op_18067:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_18067
+loop_op_18078:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_18098
+loop_op_18091:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_18091
+loop_op_18098:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_18052
+loop_op_18103:
+set_data 0
+sub_ptr 5
+loop_start loop_op_18128
+loop_op_18112:
+add_ptr 5
+inc_data
+inc_ptr
+inc_data
+sub_ptr 6
+dec_data
+loop_end loop_op_18112
+loop_op_18128:
+add_ptr 6
+loop_start loop_op_18150
+loop_op_18135:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_18135
+loop_op_18150:
+dec_ptr
+// %% get slot# y
+inc_ptr
+set_data 0
+loop_start loop_op_18162
+loop_op_18157:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_18157
+loop_op_18162:
+
+set_data 0
+dec_ptr
+loop_start loop_op_18177
+loop_op_18169:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_18169
+loop_op_18177:
+inc_ptr
+dec_data
+loop_start loop_op_18220
+loop_op_18180:
+set_data 0
+dec_ptr
+// %% IF (y=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_18211
+loop_op_18200:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_18200
+loop_op_18211:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_18180
+loop_op_18220:
+dec_ptr
+// %% END IF (y=0)
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_18245
+loop_op_18234:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_18234
+loop_op_18245:
+dec_ptr
+dec_data
+output
+// %% )
+set_data 0
+// #42#
+inc_ptr
+add_data 6
+loop_start loop_op_18272
+loop_op_18261:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_18261
+loop_op_18272:
+dec_ptr
+add_data 2
+output
+// %% comma
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_18298
+loop_op_18288:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_18288
+loop_op_18298:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_18329
+loop_op_18317:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_18317
+loop_op_18329:
+dec_ptr
+add_data 18
+output
+// %% R
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_18376
+loop_op_18364:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_18364
+loop_op_18376:
+dec_ptr
+inc_data
+output
+// %% A
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_18406
+loop_op_18394:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_18394
+loop_op_18406:
+dec_ptr
+add_data 4
+output
+// %% D
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_18439
+loop_op_18427:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_18427
+loop_op_18439:
+dec_ptr
+add_data 9
+output
+// %% I
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_18477
+loop_op_18465:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_18465
+loop_op_18477:
+dec_ptr
+add_data 21
+output
+// %% U
+set_data 0
+// #64#
+inc_ptr
+add_data 8
+loop_start loop_op_18527
+loop_op_18515:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_18515
+loop_op_18527:
+dec_ptr
+add_data 19
+output
+// %% S
+set_data 0
+// #30#
+inc_ptr
+add_data 5
+loop_start loop_op_18570
+loop_op_18560:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_18560
+loop_op_18570:
+dec_ptr
+add_data 2
+output
+// %%
+set_data 0
+sub_ptr 6
+loop_start loop_op_18603
+loop_op_18585:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_18585
+loop_op_18603:
+add_ptr 6
+loop_start loop_op_18625
+loop_op_18610:
+sub_ptr 6
+inc_data
+add_ptr 6
+dec_data
+loop_end loop_op_18610
+loop_op_18625:
+// %% radius
+inc_ptr
+loop_start loop_op_18857
+loop_op_18628:
+// %% output number
+loop_start loop_op_18638
+loop_op_18630:
+inc_ptr
+inc_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+loop_end loop_op_18630
+loop_op_18638:
+add_ptr 2
+loop_start loop_op_18648
+loop_op_18641:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_18641
+loop_op_18648:
+dec_ptr
+// %% dup
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_18711
+loop_op_18662:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_18679
+loop_op_18669:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_18669
+loop_op_18679:
+inc_ptr
+loop_start loop_op_18686
+loop_op_18681:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_18681
+loop_op_18686:
+// %% mod10
+inc_ptr
+loop_start loop_op_18705
+loop_op_18689:
+sub_ptr 2
+add_data 10
+add_ptr 2
+dec_data
+loop_end loop_op_18689
+loop_op_18705:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_18662
+loop_op_18711:
+add_data 9
+inc_ptr
+loop_start loop_op_18727
+loop_op_18722:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_18722
+loop_op_18727:
+dec_ptr
+loop_start loop_op_18734
+loop_op_18729:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_18729
+loop_op_18734:
+dec_ptr
+loop_start loop_op_18741
+loop_op_18736:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_18736
+loop_op_18741:
+dec_ptr
+loop_start loop_op_18748
+loop_op_18743:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_18743
+loop_op_18748:
+add_ptr 3
+loop_start loop_op_18761
+loop_op_18752:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_18752
+loop_op_18761:
+dec_ptr
+// %% rrot
+inc_ptr
+add_data 9
+dec_ptr
+loop_start loop_op_18827
+loop_op_18775:
+add_ptr 3
+inc_data
+sub_ptr 2
+loop_start loop_op_18792
+loop_op_18782:
+inc_ptr
+inc_data
+inc_ptr
+set_data 0
+sub_ptr 2
+dec_data
+loop_end loop_op_18782
+loop_op_18792:
+inc_ptr
+loop_start loop_op_18799
+loop_op_18794:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+loop_end loop_op_18794
+loop_op_18799:
+// %% div10
+inc_ptr
+loop_start loop_op_18821
+loop_op_18802:
+sub_ptr 2
+add_data 10
+add_ptr 3
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_18802
+loop_op_18821:
+sub_ptr 2
+dec_data
+dec_ptr
+dec_data
+loop_end loop_op_18775
+loop_op_18827:
+add_ptr 4
+loop_start loop_op_18843
+loop_op_18832:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_18832
+loop_op_18843:
+sub_ptr 3
+set_data 0
+sub_ptr 2
+inc_data
+inc_ptr
+// %% inc1
+loop_end loop_op_18628
+loop_op_18857:
+dec_ptr
+loop_start loop_op_18910
+loop_op_18859:
+loop_start loop_op_18865
+loop_op_18860:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_18860
+loop_op_18865:
+// %% mover
+add_data 7
+loop_start loop_op_18885
+loop_op_18874:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_18874
+loop_op_18885:
+dec_ptr
+dec_data
+inc_ptr
+// %% add48
+dec_ptr
+output
+set_data 0
+inc_ptr
+// %% putc
+inc_ptr
+loop_start loop_op_18905
+loop_op_18898:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_18898
+loop_op_18905:
+dec_ptr
+// %% movel2
+dec_ptr
+dec_data
+loop_end loop_op_18859
+loop_op_18910:
+set_data 0
+sub_ptr 6
+loop_start loop_op_18938
+loop_op_18920:
+add_ptr 6
+inc_data
+inc_ptr
+inc_data
+sub_ptr 7
+dec_data
+loop_end loop_op_18920
+loop_op_18938:
+add_ptr 7
+loop_start loop_op_18963
+loop_op_18946:
+sub_ptr 7
+inc_data
+add_ptr 7
+dec_data
+loop_end loop_op_18946
+loop_op_18963:
+dec_ptr
+// %% get slot# radius
+inc_ptr
+set_data 0
+loop_start loop_op_18975
+loop_op_18970:
+dec_ptr
+dec_data
+inc_ptr
+dec_data
+loop_end loop_op_18970
+loop_op_18975:
+
+set_data 0
+dec_ptr
+loop_start loop_op_18990
+loop_op_18982:
+inc_ptr
+set_data 1
+dec_ptr
+dec_data
+loop_end loop_op_18982
+loop_op_18990:
+inc_ptr
+dec_data
+loop_start loop_op_19033
+loop_op_18993:
+set_data 0
+dec_ptr
+// %% IF (radius=0)
+set_data 0
+inc_ptr
+set_data 7
+loop_start loop_op_19024
+loop_op_19013:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_19013
+loop_op_19024:
+dec_ptr
+dec_data
+output
+set_data 0
+// %% output 0 digit
+inc_ptr
+loop_end loop_op_18993
+loop_op_19033:
+dec_ptr
+// %% END IF (radius=0)
+set_data 10
+output
+set_data 0
+// %% \n
+inc_ptr
+loop_end loop_op_16557
+loop_op_19055:
+dec_ptr
+// %% END IF (function#4)
+inc_ptr
+loop_end loop_op_13332
+loop_op_19059:
+dec_ptr
+// %% END IF (class#2)
+dec_ptr
+loop_start loop_op_19084
+loop_op_19063:
+sub_ptr 20
+loop_end loop_op_19063
+loop_op_19084:
+inc_ptr
+// %% walk back to root object
+sub_ptr 22
+loop_end loop_op_466
+loop_op_19109:
+// %%
+// %%
+loop_start loop_op_19118
+loop_op_19112:
+// http://www
+output
+// angelfire
+output
+// com/tx4/cus/shapes/
+loop_end loop_op_19112
+loop_op_19118:
+// %%
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

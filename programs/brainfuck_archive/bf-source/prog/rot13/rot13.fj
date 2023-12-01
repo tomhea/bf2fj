@@ -1,0 +1,1283 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+input
+loop_start loop_op_835
+loop_op_1:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_827
+loop_op_6:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_826
+loop_op_11:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_825
+loop_op_16:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_824
+loop_op_21:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_823
+loop_op_26:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_822
+loop_op_31:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_821
+loop_op_36:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_820
+loop_op_41:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_819
+loop_op_46:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_818
+loop_op_51:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_817
+loop_op_56:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_816
+loop_op_61:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_815
+loop_op_66:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_814
+loop_op_71:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_813
+loop_op_76:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_812
+loop_op_81:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_811
+loop_op_86:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_810
+loop_op_91:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_809
+loop_op_96:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_808
+loop_op_101:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_807
+loop_op_106:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_806
+loop_op_111:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_805
+loop_op_116:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_804
+loop_op_121:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_803
+loop_op_126:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_802
+loop_op_131:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_801
+loop_op_136:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_800
+loop_op_141:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_799
+loop_op_146:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_798
+loop_op_151:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_797
+loop_op_156:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_796
+loop_op_161:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_795
+loop_op_166:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_794
+loop_op_171:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_793
+loop_op_176:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_792
+loop_op_181:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_791
+loop_op_186:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_790
+loop_op_191:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_789
+loop_op_196:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_788
+loop_op_201:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_787
+loop_op_206:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_786
+loop_op_211:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_785
+loop_op_216:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_784
+loop_op_221:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_783
+loop_op_226:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_782
+loop_op_231:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_781
+loop_op_236:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_780
+loop_op_241:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_779
+loop_op_246:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_778
+loop_op_251:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_777
+loop_op_256:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_776
+loop_op_261:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_775
+loop_op_266:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_774
+loop_op_271:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_773
+loop_op_276:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_772
+loop_op_281:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_771
+loop_op_286:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_770
+loop_op_291:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_769
+loop_op_296:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_768
+loop_op_301:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_767
+loop_op_306:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_766
+loop_op_311:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_765
+loop_op_316:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_764
+loop_op_321:
+inc_ptr
+add_data 14
+dec_ptr
+dec_data
+loop_start loop_op_763
+loop_op_339:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_762
+loop_op_344:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_761
+loop_op_349:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_760
+loop_op_354:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_759
+loop_op_359:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_758
+loop_op_364:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_757
+loop_op_369:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_756
+loop_op_374:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_755
+loop_op_379:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_754
+loop_op_384:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_753
+loop_op_389:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_752
+loop_op_394:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_751
+loop_op_399:
+add_ptr 2
+add_data 5
+loop_start loop_op_416
+loop_op_407:
+dec_ptr
+add_data 251
+inc_ptr
+dec_data
+loop_end loop_op_407
+loop_op_416:
+sub_ptr 2
+dec_data
+loop_start loop_op_750
+loop_op_420:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_749
+loop_op_425:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_748
+loop_op_430:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_747
+loop_op_435:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_746
+loop_op_440:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_745
+loop_op_445:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_744
+loop_op_450:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_743
+loop_op_455:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_742
+loop_op_460:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_741
+loop_op_465:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_740
+loop_op_470:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_739
+loop_op_475:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_738
+loop_op_480:
+inc_ptr
+add_data 14
+dec_ptr
+dec_data
+loop_start loop_op_737
+loop_op_498:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_736
+loop_op_503:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_735
+loop_op_508:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_734
+loop_op_513:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_733
+loop_op_518:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_732
+loop_op_523:
+inc_ptr
+add_data 14
+dec_ptr
+dec_data
+loop_start loop_op_731
+loop_op_541:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_730
+loop_op_546:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_729
+loop_op_551:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_728
+loop_op_556:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_727
+loop_op_561:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_726
+loop_op_566:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_725
+loop_op_571:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_724
+loop_op_576:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_723
+loop_op_581:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_722
+loop_op_586:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_721
+loop_op_591:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_720
+loop_op_596:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_719
+loop_op_601:
+add_ptr 2
+add_data 5
+loop_start loop_op_618
+loop_op_609:
+dec_ptr
+add_data 251
+inc_ptr
+dec_data
+loop_end loop_op_609
+loop_op_618:
+sub_ptr 2
+dec_data
+loop_start loop_op_718
+loop_op_622:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_717
+loop_op_627:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_716
+loop_op_632:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_715
+loop_op_637:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_714
+loop_op_642:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_713
+loop_op_647:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_712
+loop_op_652:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_711
+loop_op_657:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_710
+loop_op_662:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_709
+loop_op_667:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_708
+loop_op_672:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_707
+loop_op_677:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_start loop_op_706
+loop_op_682:
+inc_ptr
+add_data 14
+dec_ptr
+dec_data
+loop_start loop_op_705
+loop_op_700:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_700
+loop_op_705:
+loop_end loop_op_682
+loop_op_706:
+loop_end loop_op_677
+loop_op_707:
+loop_end loop_op_672
+loop_op_708:
+loop_end loop_op_667
+loop_op_709:
+loop_end loop_op_662
+loop_op_710:
+loop_end loop_op_657
+loop_op_711:
+loop_end loop_op_652
+loop_op_712:
+loop_end loop_op_647
+loop_op_713:
+loop_end loop_op_642
+loop_op_714:
+loop_end loop_op_637
+loop_op_715:
+loop_end loop_op_632
+loop_op_716:
+loop_end loop_op_627
+loop_op_717:
+loop_end loop_op_622
+loop_op_718:
+loop_end loop_op_601
+loop_op_719:
+loop_end loop_op_596
+loop_op_720:
+loop_end loop_op_591
+loop_op_721:
+loop_end loop_op_586
+loop_op_722:
+loop_end loop_op_581
+loop_op_723:
+loop_end loop_op_576
+loop_op_724:
+loop_end loop_op_571
+loop_op_725:
+loop_end loop_op_566
+loop_op_726:
+loop_end loop_op_561
+loop_op_727:
+loop_end loop_op_556
+loop_op_728:
+loop_end loop_op_551
+loop_op_729:
+loop_end loop_op_546
+loop_op_730:
+loop_end loop_op_541
+loop_op_731:
+loop_end loop_op_523
+loop_op_732:
+loop_end loop_op_518
+loop_op_733:
+loop_end loop_op_513
+loop_op_734:
+loop_end loop_op_508
+loop_op_735:
+loop_end loop_op_503
+loop_op_736:
+loop_end loop_op_498
+loop_op_737:
+loop_end loop_op_480
+loop_op_738:
+loop_end loop_op_475
+loop_op_739:
+loop_end loop_op_470
+loop_op_740:
+loop_end loop_op_465
+loop_op_741:
+loop_end loop_op_460
+loop_op_742:
+loop_end loop_op_455
+loop_op_743:
+loop_end loop_op_450
+loop_op_744:
+loop_end loop_op_445
+loop_op_745:
+loop_end loop_op_440
+loop_op_746:
+loop_end loop_op_435
+loop_op_747:
+loop_end loop_op_430
+loop_op_748:
+loop_end loop_op_425
+loop_op_749:
+loop_end loop_op_420
+loop_op_750:
+loop_end loop_op_399
+loop_op_751:
+loop_end loop_op_394
+loop_op_752:
+loop_end loop_op_389
+loop_op_753:
+loop_end loop_op_384
+loop_op_754:
+loop_end loop_op_379
+loop_op_755:
+loop_end loop_op_374
+loop_op_756:
+loop_end loop_op_369
+loop_op_757:
+loop_end loop_op_364
+loop_op_758:
+loop_end loop_op_359
+loop_op_759:
+loop_end loop_op_354
+loop_op_760:
+loop_end loop_op_349
+loop_op_761:
+loop_end loop_op_344
+loop_op_762:
+loop_end loop_op_339
+loop_op_763:
+loop_end loop_op_321
+loop_op_764:
+loop_end loop_op_316
+loop_op_765:
+loop_end loop_op_311
+loop_op_766:
+loop_end loop_op_306
+loop_op_767:
+loop_end loop_op_301
+loop_op_768:
+loop_end loop_op_296
+loop_op_769:
+loop_end loop_op_291
+loop_op_770:
+loop_end loop_op_286
+loop_op_771:
+loop_end loop_op_281
+loop_op_772:
+loop_end loop_op_276
+loop_op_773:
+loop_end loop_op_271
+loop_op_774:
+loop_end loop_op_266
+loop_op_775:
+loop_end loop_op_261
+loop_op_776:
+loop_end loop_op_256
+loop_op_777:
+loop_end loop_op_251
+loop_op_778:
+loop_end loop_op_246
+loop_op_779:
+loop_end loop_op_241
+loop_op_780:
+loop_end loop_op_236
+loop_op_781:
+loop_end loop_op_231
+loop_op_782:
+loop_end loop_op_226
+loop_op_783:
+loop_end loop_op_221
+loop_op_784:
+loop_end loop_op_216
+loop_op_785:
+loop_end loop_op_211
+loop_op_786:
+loop_end loop_op_206
+loop_op_787:
+loop_end loop_op_201
+loop_op_788:
+loop_end loop_op_196
+loop_op_789:
+loop_end loop_op_191
+loop_op_790:
+loop_end loop_op_186
+loop_op_791:
+loop_end loop_op_181
+loop_op_792:
+loop_end loop_op_176
+loop_op_793:
+loop_end loop_op_171
+loop_op_794:
+loop_end loop_op_166
+loop_op_795:
+loop_end loop_op_161
+loop_op_796:
+loop_end loop_op_156
+loop_op_797:
+loop_end loop_op_151
+loop_op_798:
+loop_end loop_op_146
+loop_op_799:
+loop_end loop_op_141
+loop_op_800:
+loop_end loop_op_136
+loop_op_801:
+loop_end loop_op_131
+loop_op_802:
+loop_end loop_op_126
+loop_op_803:
+loop_end loop_op_121
+loop_op_804:
+loop_end loop_op_116
+loop_op_805:
+loop_end loop_op_111
+loop_op_806:
+loop_end loop_op_106
+loop_op_807:
+loop_end loop_op_101
+loop_op_808:
+loop_end loop_op_96
+loop_op_809:
+loop_end loop_op_91
+loop_op_810:
+loop_end loop_op_86
+loop_op_811:
+loop_end loop_op_81
+loop_op_812:
+loop_end loop_op_76
+loop_op_813:
+loop_end loop_op_71
+loop_op_814:
+loop_end loop_op_66
+loop_op_815:
+loop_end loop_op_61
+loop_op_816:
+loop_end loop_op_56
+loop_op_817:
+loop_end loop_op_51
+loop_op_818:
+loop_end loop_op_46
+loop_op_819:
+loop_end loop_op_41
+loop_op_820:
+loop_end loop_op_36
+loop_op_821:
+loop_end loop_op_31
+loop_op_822:
+loop_end loop_op_26
+loop_op_823:
+loop_end loop_op_21
+loop_op_824:
+loop_end loop_op_16
+loop_op_825:
+loop_end loop_op_11
+loop_op_826:
+loop_end loop_op_6
+loop_op_827:
+inc_ptr
+output
+set_data 0
+dec_ptr
+input
+loop_end loop_op_1
+loop_op_835:
+// of course any function char f(char) can be made easily on the same principle
+loop_start loop_op_844
+loop_op_837:
+// Daniel B Cristofani (cristofdathevanetdotcom)
+// http://www
+output
+// hevanet
+output
+// com/cristofd/brainfuck/
+loop_end loop_op_837
+loop_op_844:
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

@@ -1,0 +1,1 @@
+This is a brainfuck program named quine505.b.

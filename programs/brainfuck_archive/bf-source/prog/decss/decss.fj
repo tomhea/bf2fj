@@ -1,0 +1,3286 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+// (Please bear with me: I can't use any periods or commas or
+// hyphens in this introduction)
+// This is an implementation of CSS decryption in the Brainfuck
+// programming language
+// It consumes exactly 2053 bytes of input and produces exactly
+// 2048 bytes of output: the input is the five byte title key
+// followed by a 2048 byte sector to decrypt and the output is
+// the decrypted sector (or the original sector if it wasn't
+// encrypted)
+// You can't decrypt more than one sector at a time because BF
+// doesn't provide any way to detect the end of the input;
+// rather than make an infinite loop I decided to stop after
+// one iteration
+// CSS is the encryption used on DVDs and Brainfuck is a Turing
+// complete programming language which actually resembles a
+// Turing machine to no small degree: in particular it uses a
+// linear workspace accessed through a "read/write head" which
+// can only move by one cell at a time
+// It's a lot of fun to watch this program in action if you
+// have a BF interpreter which shows the movement of the head
+// (and if you don't have one write one: it takes about five
+// minutes)
+// Now on with the show
+// ____________________________________________________________
+// read the key
+input
+inc_ptr
+input
+inc_ptr
+input
+inc_ptr
+input
+inc_ptr
+input
+inc_ptr
+// copy the first 21 bytes of the sector unchanged
+add_data 3
+loop_start loop_op_57
+loop_op_39:
+dec_data
+inc_ptr
+add_data 7
+loop_start loop_op_55
+loop_op_49:
+dec_data
+inc_ptr
+input
+output
+dec_ptr
+loop_end loop_op_49
+loop_op_55:
+dec_ptr
+loop_end loop_op_39
+loop_op_57:
+// convert the 21st byte to binary
+add_ptr 2
+loop_start loop_op_75
+loop_op_61:
+dec_data
+add_ptr 2
+loop_start loop_op_67
+loop_op_65:
+inc_ptr
+loop_end loop_op_65
+loop_op_67:
+inc_data
+dec_ptr
+loop_start loop_op_73
+loop_op_70:
+dec_data
+dec_ptr
+loop_end loop_op_70
+loop_op_73:
+dec_ptr
+loop_end loop_op_61
+loop_op_75:
+// save bit 4 (the encryption bit); nuke the rest
+add_ptr 2
+set_data 0
+inc_ptr
+set_data 0
+inc_ptr
+set_data 0
+inc_ptr
+set_data 0
+inc_ptr
+loop_start loop_op_112
+loop_op_95:
+dec_data
+sub_ptr 7
+inc_data
+add_ptr 7
+loop_end loop_op_95
+loop_op_112:
+inc_ptr
+set_data 0
+inc_ptr
+set_data 0
+inc_ptr
+set_data 0
+sub_ptr 10
+// if it's set:
+dec_ptr
+inc_data
+inc_ptr
+loop_start loop_op_5687
+loop_op_139:
+dec_data
+// copy another 64 bytes
+dec_ptr
+add_data 7
+loop_start loop_op_169
+loop_op_150:
+dec_data
+inc_ptr
+add_data 8
+loop_start loop_op_167
+loop_op_161:
+dec_data
+inc_ptr
+input
+output
+dec_ptr
+loop_end loop_op_161
+loop_op_167:
+dec_ptr
+loop_end loop_op_150
+loop_op_169:
+// xor the most recent byte from input with the first key byte
+sub_ptr 5
+loop_start loop_op_191
+loop_op_176:
+dec_data
+add_ptr 6
+inc_data
+sub_ptr 6
+loop_end loop_op_176
+loop_op_191:
+add_ptr 6
+loop_start loop_op_218
+loop_op_198:
+dec_data
+add_ptr 4
+loop_start loop_op_207
+loop_op_204:
+add_ptr 2
+loop_end loop_op_204
+loop_op_207:
+inc_data
+sub_ptr 2
+loop_start loop_op_215
+loop_op_211:
+dec_data
+sub_ptr 2
+loop_end loop_op_211
+loop_op_215:
+sub_ptr 2
+loop_end loop_op_198
+loop_op_218:
+inc_ptr
+loop_start loop_op_240
+loop_op_220:
+dec_data
+add_ptr 4
+loop_start loop_op_229
+loop_op_226:
+add_ptr 2
+loop_end loop_op_226
+loop_op_229:
+inc_data
+sub_ptr 2
+loop_start loop_op_237
+loop_op_233:
+dec_data
+sub_ptr 2
+loop_end loop_op_233
+loop_op_237:
+sub_ptr 2
+loop_end loop_op_220
+loop_op_240:
+add_ptr 3
+loop_start loop_op_259
+loop_op_244:
+inc_ptr
+loop_start loop_op_251
+loop_op_246:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_246
+loop_op_251:
+dec_ptr
+loop_start loop_op_258
+loop_op_253:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_253
+loop_op_258:
+loop_end loop_op_244
+loop_op_259:
+add_ptr 2
+loop_start loop_op_277
+loop_op_262:
+inc_ptr
+loop_start loop_op_269
+loop_op_264:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_264
+loop_op_269:
+dec_ptr
+loop_start loop_op_276
+loop_op_271:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_271
+loop_op_276:
+loop_end loop_op_262
+loop_op_277:
+add_ptr 2
+loop_start loop_op_295
+loop_op_280:
+inc_ptr
+loop_start loop_op_287
+loop_op_282:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_282
+loop_op_287:
+dec_ptr
+loop_start loop_op_294
+loop_op_289:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_289
+loop_op_294:
+loop_end loop_op_280
+loop_op_295:
+add_ptr 2
+loop_start loop_op_313
+loop_op_298:
+inc_ptr
+loop_start loop_op_305
+loop_op_300:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_300
+loop_op_305:
+dec_ptr
+loop_start loop_op_312
+loop_op_307:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_307
+loop_op_312:
+loop_end loop_op_298
+loop_op_313:
+add_ptr 2
+loop_start loop_op_331
+loop_op_316:
+inc_ptr
+loop_start loop_op_323
+loop_op_318:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_318
+loop_op_323:
+dec_ptr
+loop_start loop_op_330
+loop_op_325:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_325
+loop_op_330:
+loop_end loop_op_316
+loop_op_331:
+add_ptr 2
+loop_start loop_op_349
+loop_op_334:
+inc_ptr
+loop_start loop_op_341
+loop_op_336:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_336
+loop_op_341:
+dec_ptr
+loop_start loop_op_348
+loop_op_343:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_343
+loop_op_348:
+loop_end loop_op_334
+loop_op_349:
+add_ptr 2
+loop_start loop_op_367
+loop_op_352:
+inc_ptr
+loop_start loop_op_359
+loop_op_354:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_354
+loop_op_359:
+dec_ptr
+loop_start loop_op_366
+loop_op_361:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_361
+loop_op_366:
+loop_end loop_op_352
+loop_op_367:
+add_ptr 2
+loop_start loop_op_385
+loop_op_370:
+inc_ptr
+loop_start loop_op_377
+loop_op_372:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_372
+loop_op_377:
+dec_ptr
+loop_start loop_op_384
+loop_op_379:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_379
+loop_op_384:
+loop_end loop_op_370
+loop_op_385:
+// fill in the always set bits in the LFSRs
+add_ptr 10
+inc_data
+add_ptr 14
+inc_data
+sub_ptr 22
+// move the xor'ed byte to its final location (in the 17 bit LFSR)
+dec_ptr
+loop_start loop_op_456
+loop_op_437:
+dec_data
+add_ptr 8
+inc_data
+sub_ptr 8
+loop_end loop_op_437
+loop_op_456:
+sub_ptr 2
+loop_start loop_op_480
+loop_op_459:
+dec_data
+add_ptr 9
+inc_data
+sub_ptr 9
+loop_end loop_op_459
+loop_op_480:
+sub_ptr 2
+loop_start loop_op_506
+loop_op_483:
+dec_data
+add_ptr 10
+inc_data
+sub_ptr 10
+loop_end loop_op_483
+loop_op_506:
+sub_ptr 2
+loop_start loop_op_534
+loop_op_509:
+dec_data
+add_ptr 11
+inc_data
+sub_ptr 11
+loop_end loop_op_509
+loop_op_534:
+sub_ptr 2
+loop_start loop_op_564
+loop_op_537:
+dec_data
+add_ptr 12
+inc_data
+sub_ptr 12
+loop_end loop_op_537
+loop_op_564:
+sub_ptr 2
+loop_start loop_op_596
+loop_op_567:
+dec_data
+add_ptr 13
+inc_data
+sub_ptr 13
+loop_end loop_op_567
+loop_op_596:
+sub_ptr 2
+loop_start loop_op_630
+loop_op_599:
+dec_data
+add_ptr 14
+inc_data
+sub_ptr 14
+loop_end loop_op_599
+loop_op_630:
+sub_ptr 2
+loop_start loop_op_666
+loop_op_633:
+dec_data
+add_ptr 15
+inc_data
+sub_ptr 15
+loop_end loop_op_633
+loop_op_666:
+dec_ptr
+// same thing for the next four bytes (yuck)
+sub_ptr 9
+loop_start loop_op_691
+loop_op_678:
+dec_data
+add_ptr 5
+inc_data
+sub_ptr 5
+loop_end loop_op_678
+loop_op_691:
+add_ptr 6
+input
+output
+dec_ptr
+loop_start loop_op_721
+loop_op_701:
+dec_data
+add_ptr 4
+loop_start loop_op_710
+loop_op_707:
+add_ptr 2
+loop_end loop_op_707
+loop_op_710:
+inc_data
+sub_ptr 2
+loop_start loop_op_718
+loop_op_714:
+dec_data
+sub_ptr 2
+loop_end loop_op_714
+loop_op_718:
+sub_ptr 2
+loop_end loop_op_701
+loop_op_721:
+inc_ptr
+loop_start loop_op_743
+loop_op_723:
+dec_data
+add_ptr 4
+loop_start loop_op_732
+loop_op_729:
+add_ptr 2
+loop_end loop_op_729
+loop_op_732:
+inc_data
+sub_ptr 2
+loop_start loop_op_740
+loop_op_736:
+dec_data
+sub_ptr 2
+loop_end loop_op_736
+loop_op_740:
+sub_ptr 2
+loop_end loop_op_723
+loop_op_743:
+add_ptr 3
+loop_start loop_op_762
+loop_op_747:
+inc_ptr
+loop_start loop_op_754
+loop_op_749:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_749
+loop_op_754:
+dec_ptr
+loop_start loop_op_761
+loop_op_756:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_756
+loop_op_761:
+loop_end loop_op_747
+loop_op_762:
+add_ptr 2
+loop_start loop_op_780
+loop_op_765:
+inc_ptr
+loop_start loop_op_772
+loop_op_767:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_767
+loop_op_772:
+dec_ptr
+loop_start loop_op_779
+loop_op_774:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_774
+loop_op_779:
+loop_end loop_op_765
+loop_op_780:
+add_ptr 2
+loop_start loop_op_798
+loop_op_783:
+inc_ptr
+loop_start loop_op_790
+loop_op_785:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_785
+loop_op_790:
+dec_ptr
+loop_start loop_op_797
+loop_op_792:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_792
+loop_op_797:
+loop_end loop_op_783
+loop_op_798:
+add_ptr 2
+loop_start loop_op_816
+loop_op_801:
+inc_ptr
+loop_start loop_op_808
+loop_op_803:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_803
+loop_op_808:
+dec_ptr
+loop_start loop_op_815
+loop_op_810:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_810
+loop_op_815:
+loop_end loop_op_801
+loop_op_816:
+add_ptr 2
+loop_start loop_op_834
+loop_op_819:
+inc_ptr
+loop_start loop_op_826
+loop_op_821:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_821
+loop_op_826:
+dec_ptr
+loop_start loop_op_833
+loop_op_828:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_828
+loop_op_833:
+loop_end loop_op_819
+loop_op_834:
+add_ptr 2
+loop_start loop_op_852
+loop_op_837:
+inc_ptr
+loop_start loop_op_844
+loop_op_839:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_839
+loop_op_844:
+dec_ptr
+loop_start loop_op_851
+loop_op_846:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_846
+loop_op_851:
+loop_end loop_op_837
+loop_op_852:
+add_ptr 2
+loop_start loop_op_870
+loop_op_855:
+inc_ptr
+loop_start loop_op_862
+loop_op_857:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_857
+loop_op_862:
+dec_ptr
+loop_start loop_op_869
+loop_op_864:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_864
+loop_op_869:
+loop_end loop_op_855
+loop_op_870:
+add_ptr 2
+loop_start loop_op_888
+loop_op_873:
+inc_ptr
+loop_start loop_op_880
+loop_op_875:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_875
+loop_op_880:
+dec_ptr
+loop_start loop_op_887
+loop_op_882:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_882
+loop_op_887:
+loop_end loop_op_873
+loop_op_888:
+inc_ptr
+loop_start loop_op_927
+loop_op_890:
+dec_data
+add_ptr 17
+inc_data
+sub_ptr 17
+loop_end loop_op_890
+loop_op_927:
+sub_ptr 2
+loop_start loop_op_969
+loop_op_930:
+dec_data
+add_ptr 18
+inc_data
+sub_ptr 18
+loop_end loop_op_930
+loop_op_969:
+sub_ptr 2
+loop_start loop_op_1013
+loop_op_972:
+dec_data
+add_ptr 19
+inc_data
+sub_ptr 19
+loop_end loop_op_972
+loop_op_1013:
+sub_ptr 2
+loop_start loop_op_1059
+loop_op_1016:
+dec_data
+add_ptr 20
+inc_data
+sub_ptr 20
+loop_end loop_op_1016
+loop_op_1059:
+sub_ptr 2
+loop_start loop_op_1107
+loop_op_1062:
+dec_data
+add_ptr 21
+inc_data
+sub_ptr 21
+loop_end loop_op_1062
+loop_op_1107:
+sub_ptr 2
+loop_start loop_op_1157
+loop_op_1110:
+dec_data
+add_ptr 22
+inc_data
+sub_ptr 22
+loop_end loop_op_1110
+loop_op_1157:
+sub_ptr 2
+loop_start loop_op_1209
+loop_op_1160:
+dec_data
+add_ptr 23
+inc_data
+sub_ptr 23
+loop_end loop_op_1160
+loop_op_1209:
+sub_ptr 2
+loop_start loop_op_1263
+loop_op_1212:
+dec_data
+add_ptr 24
+inc_data
+sub_ptr 24
+loop_end loop_op_1212
+loop_op_1263:
+sub_ptr 9
+loop_start loop_op_1284
+loop_op_1273:
+dec_data
+add_ptr 4
+inc_data
+sub_ptr 4
+loop_end loop_op_1273
+loop_op_1284:
+add_ptr 5
+input
+output
+dec_ptr
+loop_start loop_op_1313
+loop_op_1293:
+dec_data
+add_ptr 4
+loop_start loop_op_1302
+loop_op_1299:
+add_ptr 2
+loop_end loop_op_1299
+loop_op_1302:
+inc_data
+sub_ptr 2
+loop_start loop_op_1310
+loop_op_1306:
+dec_data
+sub_ptr 2
+loop_end loop_op_1306
+loop_op_1310:
+sub_ptr 2
+loop_end loop_op_1293
+loop_op_1313:
+inc_ptr
+loop_start loop_op_1335
+loop_op_1315:
+dec_data
+add_ptr 4
+loop_start loop_op_1324
+loop_op_1321:
+add_ptr 2
+loop_end loop_op_1321
+loop_op_1324:
+inc_data
+sub_ptr 2
+loop_start loop_op_1332
+loop_op_1328:
+dec_data
+sub_ptr 2
+loop_end loop_op_1328
+loop_op_1332:
+sub_ptr 2
+loop_end loop_op_1315
+loop_op_1335:
+add_ptr 3
+loop_start loop_op_1354
+loop_op_1339:
+inc_ptr
+loop_start loop_op_1346
+loop_op_1341:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1341
+loop_op_1346:
+dec_ptr
+loop_start loop_op_1353
+loop_op_1348:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1348
+loop_op_1353:
+loop_end loop_op_1339
+loop_op_1354:
+add_ptr 2
+loop_start loop_op_1372
+loop_op_1357:
+inc_ptr
+loop_start loop_op_1364
+loop_op_1359:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1359
+loop_op_1364:
+dec_ptr
+loop_start loop_op_1371
+loop_op_1366:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1366
+loop_op_1371:
+loop_end loop_op_1357
+loop_op_1372:
+add_ptr 2
+loop_start loop_op_1390
+loop_op_1375:
+inc_ptr
+loop_start loop_op_1382
+loop_op_1377:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1377
+loop_op_1382:
+dec_ptr
+loop_start loop_op_1389
+loop_op_1384:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1384
+loop_op_1389:
+loop_end loop_op_1375
+loop_op_1390:
+add_ptr 2
+loop_start loop_op_1408
+loop_op_1393:
+inc_ptr
+loop_start loop_op_1400
+loop_op_1395:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1395
+loop_op_1400:
+dec_ptr
+loop_start loop_op_1407
+loop_op_1402:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1402
+loop_op_1407:
+loop_end loop_op_1393
+loop_op_1408:
+add_ptr 2
+loop_start loop_op_1426
+loop_op_1411:
+inc_ptr
+loop_start loop_op_1418
+loop_op_1413:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1413
+loop_op_1418:
+dec_ptr
+loop_start loop_op_1425
+loop_op_1420:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1420
+loop_op_1425:
+loop_end loop_op_1411
+loop_op_1426:
+add_ptr 2
+loop_start loop_op_1444
+loop_op_1429:
+inc_ptr
+loop_start loop_op_1436
+loop_op_1431:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1431
+loop_op_1436:
+dec_ptr
+loop_start loop_op_1443
+loop_op_1438:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1438
+loop_op_1443:
+loop_end loop_op_1429
+loop_op_1444:
+add_ptr 2
+loop_start loop_op_1462
+loop_op_1447:
+inc_ptr
+loop_start loop_op_1454
+loop_op_1449:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1449
+loop_op_1454:
+dec_ptr
+loop_start loop_op_1461
+loop_op_1456:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1456
+loop_op_1461:
+loop_end loop_op_1447
+loop_op_1462:
+add_ptr 2
+loop_start loop_op_1480
+loop_op_1465:
+inc_ptr
+loop_start loop_op_1472
+loop_op_1467:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_1467
+loop_op_1472:
+dec_ptr
+loop_start loop_op_1479
+loop_op_1474:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_1474
+loop_op_1479:
+loop_end loop_op_1465
+loop_op_1480:
+inc_ptr
+loop_start loop_op_1541
+loop_op_1482:
+dec_data
+add_ptr 28
+inc_data
+sub_ptr 28
+loop_end loop_op_1482
+loop_op_1541:
+sub_ptr 2
+loop_start loop_op_1605
+loop_op_1544:
+dec_data
+add_ptr 29
+inc_data
+sub_ptr 29
+loop_end loop_op_1544
+loop_op_1605:
+sub_ptr 2
+loop_start loop_op_1671
+loop_op_1608:
+dec_data
+add_ptr 30
+inc_data
+sub_ptr 30
+loop_end loop_op_1608
+loop_op_1671:
+sub_ptr 2
+loop_start loop_op_1739
+loop_op_1674:
+dec_data
+add_ptr 31
+inc_data
+sub_ptr 31
+loop_end loop_op_1674
+loop_op_1739:
+sub_ptr 2
+loop_start loop_op_1809
+loop_op_1742:
+dec_data
+add_ptr 32
+inc_data
+sub_ptr 32
+loop_end loop_op_1742
+loop_op_1809:
+sub_ptr 2
+loop_start loop_op_1879
+loop_op_1812:
+dec_data
+add_ptr 32
+inc_data
+sub_ptr 32
+loop_end loop_op_1812
+loop_op_1879:
+sub_ptr 2
+loop_start loop_op_1951
+loop_op_1882:
+dec_data
+add_ptr 33
+inc_data
+sub_ptr 33
+loop_end loop_op_1882
+loop_op_1951:
+sub_ptr 2
+loop_start loop_op_2025
+loop_op_1954:
+dec_data
+add_ptr 34
+inc_data
+sub_ptr 34
+loop_end loop_op_1954
+loop_op_2025:
+sub_ptr 8
+loop_start loop_op_2043
+loop_op_2034:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_2034
+loop_op_2043:
+add_ptr 4
+input
+output
+dec_ptr
+loop_start loop_op_2071
+loop_op_2051:
+dec_data
+add_ptr 4
+loop_start loop_op_2060
+loop_op_2057:
+add_ptr 2
+loop_end loop_op_2057
+loop_op_2060:
+inc_data
+sub_ptr 2
+loop_start loop_op_2068
+loop_op_2064:
+dec_data
+sub_ptr 2
+loop_end loop_op_2064
+loop_op_2068:
+sub_ptr 2
+loop_end loop_op_2051
+loop_op_2071:
+inc_ptr
+loop_start loop_op_2093
+loop_op_2073:
+dec_data
+add_ptr 4
+loop_start loop_op_2082
+loop_op_2079:
+add_ptr 2
+loop_end loop_op_2079
+loop_op_2082:
+inc_data
+sub_ptr 2
+loop_start loop_op_2090
+loop_op_2086:
+dec_data
+sub_ptr 2
+loop_end loop_op_2086
+loop_op_2090:
+sub_ptr 2
+loop_end loop_op_2073
+loop_op_2093:
+add_ptr 3
+loop_start loop_op_2112
+loop_op_2097:
+inc_ptr
+loop_start loop_op_2104
+loop_op_2099:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2099
+loop_op_2104:
+dec_ptr
+loop_start loop_op_2111
+loop_op_2106:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2106
+loop_op_2111:
+loop_end loop_op_2097
+loop_op_2112:
+add_ptr 2
+loop_start loop_op_2130
+loop_op_2115:
+inc_ptr
+loop_start loop_op_2122
+loop_op_2117:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2117
+loop_op_2122:
+dec_ptr
+loop_start loop_op_2129
+loop_op_2124:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2124
+loop_op_2129:
+loop_end loop_op_2115
+loop_op_2130:
+add_ptr 2
+loop_start loop_op_2148
+loop_op_2133:
+inc_ptr
+loop_start loop_op_2140
+loop_op_2135:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2135
+loop_op_2140:
+dec_ptr
+loop_start loop_op_2147
+loop_op_2142:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2142
+loop_op_2147:
+loop_end loop_op_2133
+loop_op_2148:
+add_ptr 2
+loop_start loop_op_2166
+loop_op_2151:
+inc_ptr
+loop_start loop_op_2158
+loop_op_2153:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2153
+loop_op_2158:
+dec_ptr
+loop_start loop_op_2165
+loop_op_2160:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2160
+loop_op_2165:
+loop_end loop_op_2151
+loop_op_2166:
+add_ptr 2
+loop_start loop_op_2184
+loop_op_2169:
+inc_ptr
+loop_start loop_op_2176
+loop_op_2171:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2171
+loop_op_2176:
+dec_ptr
+loop_start loop_op_2183
+loop_op_2178:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2178
+loop_op_2183:
+loop_end loop_op_2169
+loop_op_2184:
+add_ptr 2
+loop_start loop_op_2202
+loop_op_2187:
+inc_ptr
+loop_start loop_op_2194
+loop_op_2189:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2189
+loop_op_2194:
+dec_ptr
+loop_start loop_op_2201
+loop_op_2196:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2196
+loop_op_2201:
+loop_end loop_op_2187
+loop_op_2202:
+add_ptr 2
+loop_start loop_op_2220
+loop_op_2205:
+inc_ptr
+loop_start loop_op_2212
+loop_op_2207:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2207
+loop_op_2212:
+dec_ptr
+loop_start loop_op_2219
+loop_op_2214:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2214
+loop_op_2219:
+loop_end loop_op_2205
+loop_op_2220:
+add_ptr 2
+loop_start loop_op_2238
+loop_op_2223:
+inc_ptr
+loop_start loop_op_2230
+loop_op_2225:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2225
+loop_op_2230:
+dec_ptr
+loop_start loop_op_2237
+loop_op_2232:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2232
+loop_op_2237:
+loop_end loop_op_2223
+loop_op_2238:
+inc_ptr
+loop_start loop_op_2315
+loop_op_2240:
+dec_data
+add_ptr 36
+inc_data
+sub_ptr 36
+loop_end loop_op_2240
+loop_op_2315:
+sub_ptr 2
+loop_start loop_op_2395
+loop_op_2318:
+dec_data
+add_ptr 37
+inc_data
+sub_ptr 37
+loop_end loop_op_2318
+loop_op_2395:
+sub_ptr 2
+loop_start loop_op_2477
+loop_op_2398:
+dec_data
+add_ptr 38
+inc_data
+sub_ptr 38
+loop_end loop_op_2398
+loop_op_2477:
+sub_ptr 2
+loop_start loop_op_2561
+loop_op_2480:
+dec_data
+add_ptr 39
+inc_data
+sub_ptr 39
+loop_end loop_op_2480
+loop_op_2561:
+sub_ptr 2
+loop_start loop_op_2647
+loop_op_2564:
+dec_data
+add_ptr 40
+inc_data
+sub_ptr 40
+loop_end loop_op_2564
+loop_op_2647:
+sub_ptr 2
+loop_start loop_op_2735
+loop_op_2650:
+dec_data
+add_ptr 41
+inc_data
+sub_ptr 41
+loop_end loop_op_2650
+loop_op_2735:
+sub_ptr 2
+loop_start loop_op_2825
+loop_op_2738:
+dec_data
+add_ptr 42
+inc_data
+sub_ptr 42
+loop_end loop_op_2738
+loop_op_2825:
+sub_ptr 2
+loop_start loop_op_2917
+loop_op_2828:
+dec_data
+add_ptr 43
+inc_data
+sub_ptr 43
+loop_end loop_op_2828
+loop_op_2917:
+sub_ptr 7
+loop_start loop_op_2932
+loop_op_2925:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_2925
+loop_op_2932:
+add_ptr 3
+input
+output
+dec_ptr
+loop_start loop_op_2959
+loop_op_2939:
+dec_data
+add_ptr 4
+loop_start loop_op_2948
+loop_op_2945:
+add_ptr 2
+loop_end loop_op_2945
+loop_op_2948:
+inc_data
+sub_ptr 2
+loop_start loop_op_2956
+loop_op_2952:
+dec_data
+sub_ptr 2
+loop_end loop_op_2952
+loop_op_2956:
+sub_ptr 2
+loop_end loop_op_2939
+loop_op_2959:
+inc_ptr
+loop_start loop_op_2981
+loop_op_2961:
+dec_data
+add_ptr 4
+loop_start loop_op_2970
+loop_op_2967:
+add_ptr 2
+loop_end loop_op_2967
+loop_op_2970:
+inc_data
+sub_ptr 2
+loop_start loop_op_2978
+loop_op_2974:
+dec_data
+sub_ptr 2
+loop_end loop_op_2974
+loop_op_2978:
+sub_ptr 2
+loop_end loop_op_2961
+loop_op_2981:
+add_ptr 3
+loop_start loop_op_3000
+loop_op_2985:
+inc_ptr
+loop_start loop_op_2992
+loop_op_2987:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_2987
+loop_op_2992:
+dec_ptr
+loop_start loop_op_2999
+loop_op_2994:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_2994
+loop_op_2999:
+loop_end loop_op_2985
+loop_op_3000:
+add_ptr 2
+loop_start loop_op_3018
+loop_op_3003:
+inc_ptr
+loop_start loop_op_3010
+loop_op_3005:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3005
+loop_op_3010:
+dec_ptr
+loop_start loop_op_3017
+loop_op_3012:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3012
+loop_op_3017:
+loop_end loop_op_3003
+loop_op_3018:
+add_ptr 2
+loop_start loop_op_3036
+loop_op_3021:
+inc_ptr
+loop_start loop_op_3028
+loop_op_3023:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3023
+loop_op_3028:
+dec_ptr
+loop_start loop_op_3035
+loop_op_3030:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3030
+loop_op_3035:
+loop_end loop_op_3021
+loop_op_3036:
+add_ptr 2
+loop_start loop_op_3054
+loop_op_3039:
+inc_ptr
+loop_start loop_op_3046
+loop_op_3041:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3041
+loop_op_3046:
+dec_ptr
+loop_start loop_op_3053
+loop_op_3048:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3048
+loop_op_3053:
+loop_end loop_op_3039
+loop_op_3054:
+add_ptr 2
+loop_start loop_op_3072
+loop_op_3057:
+inc_ptr
+loop_start loop_op_3064
+loop_op_3059:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3059
+loop_op_3064:
+dec_ptr
+loop_start loop_op_3071
+loop_op_3066:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3066
+loop_op_3071:
+loop_end loop_op_3057
+loop_op_3072:
+add_ptr 2
+loop_start loop_op_3090
+loop_op_3075:
+inc_ptr
+loop_start loop_op_3082
+loop_op_3077:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3077
+loop_op_3082:
+dec_ptr
+loop_start loop_op_3089
+loop_op_3084:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3084
+loop_op_3089:
+loop_end loop_op_3075
+loop_op_3090:
+add_ptr 2
+loop_start loop_op_3108
+loop_op_3093:
+inc_ptr
+loop_start loop_op_3100
+loop_op_3095:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3095
+loop_op_3100:
+dec_ptr
+loop_start loop_op_3107
+loop_op_3102:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3102
+loop_op_3107:
+loop_end loop_op_3093
+loop_op_3108:
+add_ptr 2
+loop_start loop_op_3126
+loop_op_3111:
+inc_ptr
+loop_start loop_op_3118
+loop_op_3113:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3113
+loop_op_3118:
+dec_ptr
+loop_start loop_op_3125
+loop_op_3120:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_3120
+loop_op_3125:
+loop_end loop_op_3111
+loop_op_3126:
+inc_ptr
+loop_start loop_op_3219
+loop_op_3128:
+dec_data
+add_ptr 44
+inc_data
+sub_ptr 44
+loop_end loop_op_3128
+loop_op_3219:
+sub_ptr 2
+loop_start loop_op_3315
+loop_op_3222:
+dec_data
+add_ptr 45
+inc_data
+sub_ptr 45
+loop_end loop_op_3222
+loop_op_3315:
+sub_ptr 2
+loop_start loop_op_3413
+loop_op_3318:
+dec_data
+add_ptr 46
+inc_data
+sub_ptr 46
+loop_end loop_op_3318
+loop_op_3413:
+sub_ptr 2
+loop_start loop_op_3513
+loop_op_3416:
+dec_data
+add_ptr 47
+inc_data
+sub_ptr 47
+loop_end loop_op_3416
+loop_op_3513:
+sub_ptr 2
+loop_start loop_op_3615
+loop_op_3516:
+dec_data
+add_ptr 48
+inc_data
+sub_ptr 48
+loop_end loop_op_3516
+loop_op_3615:
+sub_ptr 2
+loop_start loop_op_3719
+loop_op_3618:
+dec_data
+add_ptr 49
+inc_data
+sub_ptr 49
+loop_end loop_op_3618
+loop_op_3719:
+sub_ptr 2
+loop_start loop_op_3825
+loop_op_3722:
+dec_data
+add_ptr 50
+inc_data
+sub_ptr 50
+loop_end loop_op_3722
+loop_op_3825:
+sub_ptr 2
+loop_start loop_op_3933
+loop_op_3828:
+dec_data
+add_ptr 51
+inc_data
+sub_ptr 51
+loop_end loop_op_3828
+loop_op_3933:
+sub_ptr 9
+// copy the remaining 39 bytes of the header
+add_data 3
+loop_start loop_op_3971
+loop_op_3947:
+dec_data
+inc_ptr
+add_data 13
+loop_start loop_op_3969
+loop_op_3963:
+dec_data
+inc_ptr
+input
+output
+dec_ptr
+loop_end loop_op_3963
+loop_op_3969:
+dec_ptr
+loop_end loop_op_3947
+loop_op_3971:
+sub_ptr 2
+// main decryption loop: for each of 1920 bytes:
+add_data 5
+loop_start loop_op_5680
+loop_op_3980:
+dec_data
+inc_ptr
+add_data 6
+loop_start loop_op_5678
+loop_op_3989:
+dec_data
+inc_ptr
+add_data 8
+loop_start loop_op_5676
+loop_op_4000:
+dec_data
+inc_ptr
+add_data 8
+loop_start loop_op_5674
+loop_op_4011:
+dec_data
+inc_ptr
+// read a byte and convert it to binary
+input
+loop_start loop_op_4034
+loop_op_4016:
+dec_data
+add_ptr 3
+loop_start loop_op_4024
+loop_op_4021:
+add_ptr 2
+loop_end loop_op_4021
+loop_op_4024:
+inc_data
+sub_ptr 2
+loop_start loop_op_4032
+loop_op_4028:
+dec_data
+sub_ptr 2
+loop_end loop_op_4028
+loop_op_4032:
+dec_ptr
+loop_end loop_op_4016
+loop_op_4034:
+// perform the mangling step (bit ordering is AaBbCcDdEeFfGgHh)
+add_ptr 6
+inc_data
+add_ptr 2
+inc_data
+add_ptr 4
+inc_data
+add_ptr 4
+inc_data
+inc_ptr
+loop_start loop_op_4070
+loop_op_4057:
+dec_data
+sub_ptr 5
+dec_data
+add_ptr 5
+loop_end loop_op_4057
+loop_op_4070:
+sub_ptr 2
+loop_start loop_op_4098
+loop_op_4073:
+dec_data
+sub_ptr 11
+inc_data
+add_ptr 11
+loop_end loop_op_4073
+loop_op_4098:
+// F =!h; B = g;
+add_data 2
+sub_ptr 2
+loop_start loop_op_4131
+loop_op_4104:
+dec_data
+add_ptr 2
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 11
+dec_data
+add_ptr 7
+loop_end loop_op_4104
+loop_op_4131:
+sub_ptr 2
+loop_start loop_op_4151
+loop_op_4134:
+dec_data
+add_ptr 4
+dec_data
+add_ptr 2
+inc_data
+dec_ptr
+dec_data
+sub_ptr 5
+loop_end loop_op_4134
+loop_op_4151:
+sub_ptr 2
+// C =!f; H =!e; g=2 minus e minus f; h=e plus f
+loop_start loop_op_4172
+loop_op_4155:
+dec_data
+sub_ptr 7
+inc_data
+add_ptr 7
+loop_end loop_op_4155
+loop_op_4172:
+sub_ptr 2
+loop_start loop_op_4184
+loop_op_4175:
+dec_data
+add_ptr 3
+inc_data
+sub_ptr 3
+loop_end loop_op_4175
+loop_op_4184:
+// A = d; E = c;
+add_data 2
+sub_ptr 2
+loop_start loop_op_4200
+loop_op_4190:
+dec_data
+add_ptr 2
+dec_data
+inc_ptr
+dec_data
+sub_ptr 3
+loop_end loop_op_4190
+loop_op_4200:
+sub_ptr 2
+loop_start loop_op_4229
+loop_op_4203:
+dec_data
+add_ptr 4
+dec_data
+add_ptr 7
+inc_data
+sub_ptr 11
+loop_end loop_op_4203
+loop_op_4229:
+// D =!b; G = a; c=2 minus a minus b;
+add_ptr 4
+loop_start loop_op_4281
+loop_op_4235:
+set_data 0
+sub_ptr 4
+inc_data
+dec_ptr
+loop_start loop_op_4250
+loop_op_4245:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_4245
+loop_op_4250:
+inc_ptr
+loop_start loop_op_4257
+loop_op_4252:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_4252
+loop_op_4257:
+add_ptr 6
+inc_data
+inc_ptr
+loop_start loop_op_4271
+loop_op_4266:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_4266
+loop_op_4271:
+dec_ptr
+loop_start loop_op_4278
+loop_op_4273:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4273
+loop_op_4278:
+sub_ptr 2
+loop_end loop_op_4235
+loop_op_4281:
+// A ^=!!c; E ^=!!c;  (!!c == !(a&b))
+add_ptr 8
+loop_start loop_op_4330
+loop_op_4291:
+set_data 0
+sub_ptr 10
+inc_data
+dec_ptr
+loop_start loop_op_4312
+loop_op_4307:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_4307
+loop_op_4312:
+inc_ptr
+loop_start loop_op_4319
+loop_op_4314:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_4314
+loop_op_4319:
+add_ptr 10
+loop_end loop_op_4291
+loop_op_4330:
+// B ^=!!g;  (!!g == !(e&f))
+add_ptr 2
+loop_start loop_op_4361
+loop_op_4334:
+set_data 0
+sub_ptr 4
+inc_data
+dec_ptr
+loop_start loop_op_4349
+loop_op_4344:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_4344
+loop_op_4349:
+inc_ptr
+loop_start loop_op_4356
+loop_op_4351:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_4351
+loop_op_4356:
+add_ptr 4
+loop_end loop_op_4334
+loop_op_4361:
+sub_ptr 15
+// F ^=!!h;  (!!h == (e|f))
+loop_start loop_op_4433
+loop_op_4378:
+dec_data
+add_ptr 2
+loop_start loop_op_4421
+loop_op_4382:
+dec_data
+inc_ptr
+inc_data
+inc_ptr
+loop_start loop_op_4392
+loop_op_4387:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_4387
+loop_op_4392:
+dec_ptr
+loop_start loop_op_4399
+loop_op_4394:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4394
+loop_op_4399:
+add_ptr 2
+inc_data
+inc_ptr
+loop_start loop_op_4409
+loop_op_4404:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_4404
+loop_op_4409:
+dec_ptr
+loop_start loop_op_4416
+loop_op_4411:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4411
+loop_op_4416:
+sub_ptr 2
+inc_data
+dec_ptr
+loop_end loop_op_4382
+loop_op_4421:
+inc_ptr
+loop_start loop_op_4428
+loop_op_4423:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_4423
+loop_op_4428:
+sub_ptr 2
+inc_data
+dec_ptr
+loop_end loop_op_4378
+loop_op_4433:
+inc_ptr
+loop_start loop_op_4440
+loop_op_4435:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_4435
+loop_op_4440:
+// C ^= A&B; D ^= A&B;
+add_ptr 10
+add_data 2
+sub_ptr 3
+loop_start loop_op_4472
+loop_op_4457:
+dec_data
+inc_ptr
+inc_data
+add_ptr 2
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 5
+loop_end loop_op_4457
+loop_op_4472:
+inc_ptr
+loop_start loop_op_4479
+loop_op_4474:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_4474
+loop_op_4479:
+inc_ptr
+loop_start loop_op_4494
+loop_op_4481:
+dec_data
+dec_ptr
+inc_data
+add_ptr 2
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_end loop_op_4481
+loop_op_4494:
+dec_ptr
+loop_start loop_op_4501
+loop_op_4496:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4496
+loop_op_4501:
+// f = 2 minus E minus F; g = E plus F;
+add_ptr 2
+loop_start loop_op_4524
+loop_op_4505:
+set_data 1
+inc_ptr
+loop_start loop_op_4516
+loop_op_4511:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_4511
+loop_op_4516:
+dec_ptr
+loop_start loop_op_4523
+loop_op_4518:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4518
+loop_op_4523:
+loop_end loop_op_4505
+loop_op_4524:
+add_ptr 2
+loop_start loop_op_4546
+loop_op_4527:
+set_data 1
+inc_ptr
+loop_start loop_op_4538
+loop_op_4533:
+dec_data
+dec_ptr
+dec_data
+inc_ptr
+loop_end loop_op_4533
+loop_op_4538:
+dec_ptr
+loop_start loop_op_4545
+loop_op_4540:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4540
+loop_op_4545:
+loop_end loop_op_4527
+loop_op_4546:
+// G ^=!!f; H ^=!!g;
+// generate eight cipher bits
+add_ptr 2
+add_data 8
+loop_start loop_op_5384
+loop_op_4559:
+inc_ptr
+// clock the 17 bit LFSR and add end bit to previous carry
+add_ptr 2
+inc_data
+add_ptr 18
+loop_start loop_op_4620
+loop_op_4583:
+dec_data
+sub_ptr 17
+inc_data
+add_ptr 17
+loop_end loop_op_4583
+loop_op_4620:
+dec_ptr
+loop_start loop_op_4627
+loop_op_4622:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4622
+loop_op_4627:
+dec_ptr
+loop_start loop_op_4634
+loop_op_4629:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4629
+loop_op_4634:
+dec_ptr
+loop_start loop_op_4641
+loop_op_4636:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4636
+loop_op_4641:
+dec_ptr
+loop_start loop_op_4648
+loop_op_4643:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4643
+loop_op_4648:
+dec_ptr
+loop_start loop_op_4655
+loop_op_4650:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4650
+loop_op_4655:
+dec_ptr
+loop_start loop_op_4662
+loop_op_4657:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4657
+loop_op_4662:
+dec_ptr
+loop_start loop_op_4669
+loop_op_4664:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4664
+loop_op_4669:
+dec_ptr
+loop_start loop_op_4676
+loop_op_4671:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4671
+loop_op_4676:
+dec_ptr
+loop_start loop_op_4683
+loop_op_4678:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4678
+loop_op_4683:
+dec_ptr
+loop_start loop_op_4690
+loop_op_4685:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4685
+loop_op_4690:
+dec_ptr
+loop_start loop_op_4697
+loop_op_4692:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4692
+loop_op_4697:
+dec_ptr
+loop_start loop_op_4704
+loop_op_4699:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4699
+loop_op_4704:
+dec_ptr
+loop_start loop_op_4711
+loop_op_4706:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4706
+loop_op_4711:
+dec_ptr
+loop_start loop_op_4725
+loop_op_4713:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 4
+inc_data
+add_ptr 3
+loop_end loop_op_4713
+loop_op_4725:
+dec_ptr
+loop_start loop_op_4732
+loop_op_4727:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4727
+loop_op_4732:
+dec_ptr
+loop_start loop_op_4739
+loop_op_4734:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4734
+loop_op_4739:
+dec_ptr
+loop_start loop_op_4758
+loop_op_4741:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 2
+dec_data
+inc_ptr
+loop_start loop_op_4757
+loop_op_4749:
+dec_data
+inc_ptr
+dec_data
+sub_ptr 2
+inc_data
+inc_ptr
+loop_end loop_op_4749
+loop_op_4757:
+loop_end loop_op_4741
+loop_op_4758:
+// clock the 25 bit LFSR and add end bit to total
+add_ptr 44
+loop_start loop_op_4857
+loop_op_4804:
+dec_data
+sub_ptr 25
+inc_data
+add_ptr 25
+loop_end loop_op_4804
+loop_op_4857:
+dec_ptr
+loop_start loop_op_4864
+loop_op_4859:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4859
+loop_op_4864:
+dec_ptr
+loop_start loop_op_4871
+loop_op_4866:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4866
+loop_op_4871:
+dec_ptr
+loop_start loop_op_4923
+loop_op_4873:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 23
+inc_data
+add_ptr 22
+loop_end loop_op_4873
+loop_op_4923:
+dec_ptr
+loop_start loop_op_4973
+loop_op_4925:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 22
+inc_data
+add_ptr 21
+loop_end loop_op_4925
+loop_op_4973:
+dec_ptr
+loop_start loop_op_4980
+loop_op_4975:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4975
+loop_op_4980:
+dec_ptr
+loop_start loop_op_4987
+loop_op_4982:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4982
+loop_op_4987:
+dec_ptr
+loop_start loop_op_4994
+loop_op_4989:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4989
+loop_op_4994:
+dec_ptr
+loop_start loop_op_5001
+loop_op_4996:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_4996
+loop_op_5001:
+dec_ptr
+loop_start loop_op_5008
+loop_op_5003:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5003
+loop_op_5008:
+dec_ptr
+loop_start loop_op_5015
+loop_op_5010:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5010
+loop_op_5015:
+dec_ptr
+loop_start loop_op_5022
+loop_op_5017:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5017
+loop_op_5022:
+dec_ptr
+loop_start loop_op_5056
+loop_op_5024:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 14
+inc_data
+add_ptr 13
+loop_end loop_op_5024
+loop_op_5056:
+dec_ptr
+loop_start loop_op_5063
+loop_op_5058:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5058
+loop_op_5063:
+dec_ptr
+loop_start loop_op_5070
+loop_op_5065:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5065
+loop_op_5070:
+dec_ptr
+loop_start loop_op_5077
+loop_op_5072:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5072
+loop_op_5077:
+dec_ptr
+loop_start loop_op_5084
+loop_op_5079:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5079
+loop_op_5084:
+dec_ptr
+loop_start loop_op_5091
+loop_op_5086:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5086
+loop_op_5091:
+dec_ptr
+loop_start loop_op_5098
+loop_op_5093:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5093
+loop_op_5098:
+dec_ptr
+loop_start loop_op_5105
+loop_op_5100:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5100
+loop_op_5105:
+dec_ptr
+loop_start loop_op_5112
+loop_op_5107:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5107
+loop_op_5112:
+dec_ptr
+loop_start loop_op_5119
+loop_op_5114:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5114
+loop_op_5119:
+dec_ptr
+loop_start loop_op_5126
+loop_op_5121:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5121
+loop_op_5126:
+dec_ptr
+loop_start loop_op_5133
+loop_op_5128:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5128
+loop_op_5133:
+dec_ptr
+loop_start loop_op_5140
+loop_op_5135:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5135
+loop_op_5140:
+dec_ptr
+loop_start loop_op_5177
+loop_op_5142:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 2
+inc_data
+inc_ptr
+loop_start loop_op_5176
+loop_op_5150:
+dec_data
+inc_ptr
+dec_data
+sub_ptr 2
+dec_data
+inc_ptr
+loop_start loop_op_5175
+loop_op_5158:
+dec_data
+inc_ptr
+inc_data
+sub_ptr 2
+inc_data
+inc_ptr
+loop_start loop_op_5174
+loop_op_5166:
+dec_data
+inc_ptr
+dec_data
+sub_ptr 2
+dec_data
+inc_ptr
+loop_end loop_op_5166
+loop_op_5174:
+loop_end loop_op_5158
+loop_op_5175:
+loop_end loop_op_5150
+loop_op_5176:
+loop_end loop_op_5142
+loop_op_5177:
+dec_ptr
+loop_start loop_op_5220
+loop_op_5179:
+dec_data
+sub_ptr 19
+inc_data
+add_ptr 19
+loop_end loop_op_5179
+loop_op_5220:
+sub_ptr 19
+// split total into low bit (result) and high bit (new carry)
+loop_start loop_op_5246
+loop_op_5241:
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_5241
+loop_op_5246:
+inc_ptr
+loop_start loop_op_5262
+loop_op_5248:
+dec_data
+sub_ptr 2
+loop_start loop_op_5254
+loop_op_5252:
+dec_ptr
+loop_end loop_op_5252
+loop_op_5254:
+inc_data
+inc_ptr
+loop_start loop_op_5260
+loop_op_5257:
+dec_data
+inc_ptr
+loop_end loop_op_5257
+loop_op_5260:
+inc_ptr
+loop_end loop_op_5248
+loop_op_5262:
+sub_ptr 3
+loop_start loop_op_5273
+loop_op_5266:
+dec_data
+add_ptr 2
+inc_data
+sub_ptr 2
+loop_end loop_op_5266
+loop_op_5273:
+// shift in new result bit
+sub_ptr 17
+set_data 0
+add_ptr 2
+loop_start loop_op_5304
+loop_op_5297:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5297
+loop_op_5304:
+add_ptr 2
+loop_start loop_op_5314
+loop_op_5307:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5307
+loop_op_5314:
+add_ptr 2
+loop_start loop_op_5324
+loop_op_5317:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5317
+loop_op_5324:
+add_ptr 2
+loop_start loop_op_5334
+loop_op_5327:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5327
+loop_op_5334:
+add_ptr 2
+loop_start loop_op_5344
+loop_op_5337:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5337
+loop_op_5344:
+add_ptr 2
+loop_start loop_op_5354
+loop_op_5347:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5347
+loop_op_5354:
+add_ptr 2
+loop_start loop_op_5364
+loop_op_5357:
+dec_data
+sub_ptr 2
+inc_data
+add_ptr 2
+loop_end loop_op_5357
+loop_op_5364:
+add_ptr 4
+loop_start loop_op_5380
+loop_op_5369:
+dec_data
+sub_ptr 4
+inc_data
+add_ptr 4
+loop_end loop_op_5369
+loop_op_5380:
+sub_ptr 2
+dec_data
+loop_end loop_op_4559
+loop_op_5384:
+// xor cipher byte with sector byte
+dec_ptr
+loop_start loop_op_5402
+loop_op_5387:
+dec_ptr
+loop_start loop_op_5394
+loop_op_5389:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5389
+loop_op_5394:
+inc_ptr
+loop_start loop_op_5401
+loop_op_5396:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5396
+loop_op_5401:
+loop_end loop_op_5387
+loop_op_5402:
+sub_ptr 2
+loop_start loop_op_5420
+loop_op_5405:
+dec_ptr
+loop_start loop_op_5412
+loop_op_5407:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5407
+loop_op_5412:
+inc_ptr
+loop_start loop_op_5419
+loop_op_5414:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5414
+loop_op_5419:
+loop_end loop_op_5405
+loop_op_5420:
+sub_ptr 2
+loop_start loop_op_5438
+loop_op_5423:
+dec_ptr
+loop_start loop_op_5430
+loop_op_5425:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5425
+loop_op_5430:
+inc_ptr
+loop_start loop_op_5437
+loop_op_5432:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5432
+loop_op_5437:
+loop_end loop_op_5423
+loop_op_5438:
+sub_ptr 2
+loop_start loop_op_5456
+loop_op_5441:
+dec_ptr
+loop_start loop_op_5448
+loop_op_5443:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5443
+loop_op_5448:
+inc_ptr
+loop_start loop_op_5455
+loop_op_5450:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5450
+loop_op_5455:
+loop_end loop_op_5441
+loop_op_5456:
+sub_ptr 2
+loop_start loop_op_5474
+loop_op_5459:
+dec_ptr
+loop_start loop_op_5466
+loop_op_5461:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5461
+loop_op_5466:
+inc_ptr
+loop_start loop_op_5473
+loop_op_5468:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5468
+loop_op_5473:
+loop_end loop_op_5459
+loop_op_5474:
+sub_ptr 2
+loop_start loop_op_5492
+loop_op_5477:
+dec_ptr
+loop_start loop_op_5484
+loop_op_5479:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5479
+loop_op_5484:
+inc_ptr
+loop_start loop_op_5491
+loop_op_5486:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5486
+loop_op_5491:
+loop_end loop_op_5477
+loop_op_5492:
+sub_ptr 2
+loop_start loop_op_5510
+loop_op_5495:
+dec_ptr
+loop_start loop_op_5502
+loop_op_5497:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5497
+loop_op_5502:
+inc_ptr
+loop_start loop_op_5509
+loop_op_5504:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5504
+loop_op_5509:
+loop_end loop_op_5495
+loop_op_5510:
+sub_ptr 2
+loop_start loop_op_5528
+loop_op_5513:
+dec_ptr
+loop_start loop_op_5520
+loop_op_5515:
+dec_data
+inc_ptr
+dec_data
+dec_ptr
+loop_end loop_op_5515
+loop_op_5520:
+inc_ptr
+loop_start loop_op_5527
+loop_op_5522:
+dec_data
+dec_ptr
+inc_data
+inc_ptr
+loop_end loop_op_5522
+loop_op_5527:
+loop_end loop_op_5513
+loop_op_5528:
+// combine bits into output byte
+inc_ptr
+loop_start loop_op_5539
+loop_op_5531:
+dec_data
+sub_ptr 2
+add_data 2
+add_ptr 2
+loop_end loop_op_5531
+loop_op_5539:
+add_ptr 4
+loop_start loop_op_5552
+loop_op_5544:
+dec_data
+sub_ptr 2
+add_data 2
+add_ptr 2
+loop_end loop_op_5544
+loop_op_5552:
+add_ptr 4
+loop_start loop_op_5565
+loop_op_5557:
+dec_data
+sub_ptr 2
+add_data 2
+add_ptr 2
+loop_end loop_op_5557
+loop_op_5565:
+add_ptr 4
+loop_start loop_op_5578
+loop_op_5570:
+dec_data
+sub_ptr 2
+add_data 2
+add_ptr 2
+loop_end loop_op_5570
+loop_op_5578:
+sub_ptr 2
+loop_start loop_op_5595
+loop_op_5581:
+dec_data
+sub_ptr 4
+add_data 4
+add_ptr 4
+loop_end loop_op_5581
+loop_op_5595:
+sub_ptr 8
+loop_start loop_op_5618
+loop_op_5604:
+dec_data
+sub_ptr 4
+add_data 4
+add_ptr 4
+loop_end loop_op_5604
+loop_op_5618:
+add_ptr 4
+loop_start loop_op_5657
+loop_op_5623:
+dec_data
+sub_ptr 8
+add_data 16
+add_ptr 8
+loop_end loop_op_5623
+loop_op_5657:
+// and write it out
+sub_ptr 8
+output
+set_data 0
+// end of decryption loop
+sub_ptr 2
+loop_end loop_op_4011
+loop_op_5674:
+dec_ptr
+loop_end loop_op_4000
+loop_op_5676:
+dec_ptr
+loop_end loop_op_3989
+loop_op_5678:
+dec_ptr
+loop_end loop_op_3980
+loop_op_5680:
+add_ptr 5
+// end of decryption; if the encryption bit was clear:
+loop_end loop_op_139
+loop_op_5687:
+dec_ptr
+loop_start loop_op_5748
+loop_op_5689:
+// then just copy the rest of the sector (2027 bytes)
+inc_ptr
+add_data 5
+loop_start loop_op_5741
+loop_op_5697:
+dec_data
+inc_ptr
+add_data 5
+loop_start loop_op_5739
+loop_op_5705:
+dec_data
+inc_ptr
+add_data 9
+loop_start loop_op_5737
+loop_op_5717:
+dec_data
+inc_ptr
+add_data 9
+loop_start loop_op_5735
+loop_op_5729:
+dec_data
+inc_ptr
+input
+output
+dec_ptr
+loop_end loop_op_5729
+loop_op_5735:
+dec_ptr
+loop_end loop_op_5717
+loop_op_5737:
+dec_ptr
+loop_end loop_op_5705
+loop_op_5739:
+dec_ptr
+loop_end loop_op_5697
+loop_op_5741:
+input
+output
+input
+output
+inc_ptr
+// end of plaintext copy
+loop_end loop_op_5689
+loop_op_5748:
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

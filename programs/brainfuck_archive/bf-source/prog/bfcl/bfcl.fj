@@ -1,0 +1,3315 @@
+// The next code was created as part of the bf2fj (Brainfuck to Flipjump) project: https://github.com/tomhea/bf2fj
+
+
+HEXES_IN_BYTE = 2
+BITS_IN_HEX = 4
+DEFAULT_LABEL_PADDINGS = 16
+// NOTE: standard values, for a program of size 10,000 random bf-ops: w=32, @=21.
+
+stl.startup_and_init_pointers brainfuck_start
+
+
+ptr: hex.vec w/BITS_IN_HEX, brainfuck_memory  // this is the main data-pointer that brainfuck operates on.
+
+ret_register: bit.bit           // used for the brainfuck ops fast-calls.
+inner_ret_register: bit.bit     // used for the read/write *ptr fast-calls.
+// Complexity: @-1
+def call label < ret_register {
+    stl.fcall label, ret_register
+}
+// Complexity: 1
+def return < ret_register {
+    stl.fret ret_register
+}
+
+def call_inner label < inner_ret_register {
+    stl.fcall label, inner_ret_register
+}
+// Complexity: 1
+def return_inner < inner_ret_register {
+    stl.fret inner_ret_register
+}
+
+temp_byte: hex.vec HEXES_IN_BYTE        // can be changed between read_pointed_byte..() to write_temp_byte(..) calls.
+
+repetition_optimization_byte: hex.vec HEXES_IN_BYTE     // can be changed, as it's an input to data-optimization macros.
+
+PTR_OPTIMIZE_OFFSET_HEX_LENGTH = 3
+PTR_OPTIMIZE_OFFSET_HEX_SHIFT = 1
+// can be changed, as it's an input to ptr-optimization macros.
+repetition_optimization_ptr_offset: hex.vec PTR_OPTIMIZE_OFFSET_HEX_LENGTH
+
+//  Time Complexity: w(0.75@+ 5) + 9@+13   ( ~870 ops, according to the standard values)
+// Space Complexity: w(0.75@+29) + 9@+72   (~1700 ops, according to the standard values)
+//    temp_byte = stl.pointers.read_byte = *ptr[:2]
+def read_pointed_byte_to_temp_byte < ptr, temp_byte {
+    hex.read_byte temp_byte, ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+read_pointed_byte_to_temp_byte:
+    read_pointed_byte_to_temp_byte
+    return_inner
+
+//  Time Complexity: 12@      (~250 ops, according to the standard values)
+// Space Complexity: 12@+176  (~430 ops, according to the standard values)
+//    *ptr[:2] ^= (temp_byte ^ _original_byte)
+def write_temp_byte_to_pointed_byte < hex.pointers.read_byte, temp_byte {
+    hex.xor HEXES_IN_BYTE, hex.pointers.read_byte, temp_byte
+    hex.pointers.xor_byte_to_flip_ptr hex.pointers.read_byte
+}
+pad DEFAULT_LABEL_PADDINGS
+write_temp_byte_to_pointed_byte:
+    write_temp_byte_to_pointed_byte
+    return_inner
+
+
+// Required init macros. Space Complexity: 3,142 (according to the standard values).
+hex.tables.init_shared
+hex.add.init
+hex.sub.init
+
+
+
+
+// ---------- Pointer Macros ----------
+
+// Time Complexity: 10@+14  (224 ops, according to the standard valuess)
+//   Executes the '>' command:  ptr++
+def inc_ptr < inc_ptr {
+    call inc_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_inc ptr
+    return
+
+
+// Time Complexity: 10@+23  (=233 according to the standard values)
+//   Executes the '<' command:  ptr--
+def dec_ptr < dec_ptr {
+    call dec_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_ptr:    // space-complexity is about: 600 (according to the standard values).
+    hex.ptr_dec ptr
+    return
+
+
+
+
+// ---------- Data Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '+' command:  (*ptr)++
+def inc_data < inc_data {
+    call inc_data
+}
+pad DEFAULT_LABEL_PADDINGS
+inc_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.inc HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 26@+1  (~1210 according to the standard values)
+//   Executes the '-' command:  (*ptr)--
+def dec_data < dec_data {
+    call dec_data
+}
+pad DEFAULT_LABEL_PADDINGS
+dec_data:   // space-complexity is about: 131 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.dec HEXES_IN_BYTE, temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- IO Macros ----------
+
+//  Time Complexity: w(0.75@+ 5) + 13@+5   (~940 ops, according to the standard values)
+//   Executes the '.' command:  print_byte(*ptr)
+def output < output {
+    call output
+}
+pad DEFAULT_LABEL_PADDINGS
+output:     // space-complexity is about: 63 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.print temp_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 28@+15  (~1270 according to the standard values)
+//   Executes the ',' command:  *ptr = input_byte()
+def input < input {
+    call input
+}
+pad DEFAULT_LABEL_PADDINGS
+input:      // space-complexity is about: 161 (according to the standard values).
+    call_inner read_pointed_byte_to_temp_byte
+    hex.input temp_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+// ---------- Looping Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the '[' command:  if (*ptr == 0) goto loop-end
+def loop_start after_loop_end_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if0 HEXES_IN_BYTE, temp_byte, after_loop_end_label
+}
+// Time Complexity: w(0.75@+ 5) + 12@+7  (~920 according to the standard values)
+//   Executes the ']' command:  if (*ptr != 0) goto loop-start
+def loop_end after_loop_start_label < read_pointed_byte_to_temp_byte, temp_byte {
+    call_inner read_pointed_byte_to_temp_byte
+    hex.if1 HEXES_IN_BYTE, temp_byte, after_loop_start_label
+}
+
+
+
+// ---------- Pointer Optimization Macros ----------
+
+// Time Complexity: w(0.75@+ 5) + 44@+50  (~1640 according to the standard values)
+//   Executes multiple '>','<' commands:  ptr += value  (value must be 0 <= value < 256)
+def add_ptr value < repetition_optimization_ptr_offset, add_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call add_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+add_ptr:    // space-complexity is about: 699
+    hex.add_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 44@+59  (~1650 according to the standard values)
+//   Executes multiple '<','>' commands:  ptr -= value  (value must be 0 <= value < 256)
+def sub_ptr value < repetition_optimization_ptr_offset, sub_ptr {
+    hex.set \
+        PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        repetition_optimization_ptr_offset, \
+        (value * dw) >> (BITS_IN_HEX * PTR_OPTIMIZE_OFFSET_HEX_SHIFT)
+    call sub_ptr
+}
+pad DEFAULT_LABEL_PADDINGS
+sub_ptr:    // space-complexity is about: 711
+    hex.sub_shifted \
+        w/BITS_IN_HEX,  PTR_OPTIMIZE_OFFSET_HEX_LENGTH, \
+        ptr,            repetition_optimization_ptr_offset, \
+        PTR_OPTIMIZE_OFFSET_HEX_SHIFT
+    return
+
+
+
+
+// ---------- Data Optimization Macros ----------
+
+
+// Time Complexity: w(0.75@+ 5) + 34@+33  (~1410 according to the standard values)
+//   Executes multiple '+'/'-' commands:  (*ptr) += value  (value is positive, yet can overflow)
+def add_data value < repetition_optimization_byte, add_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call add_data
+}
+pad DEFAULT_LABEL_PADDINGS
+add_data:   // space-complexity is about: 313
+    call_inner read_pointed_byte_to_temp_byte
+    hex.add HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+// Time Complexity: w(0.75@+ 5) + 30@+9  (~1300 according to the standard values)
+//   Executes "[-]"/"[+]" and then multiple '+'/'-' commands:  (*ptr) = value  (value is positive, yet can overflow)
+def set_data value < repetition_optimization_byte, set_data {
+    hex.set HEXES_IN_BYTE, repetition_optimization_byte, value
+    call set_data
+}
+pad DEFAULT_LABEL_PADDINGS
+set_data:   // space-complexity is about: 173
+    call_inner read_pointed_byte_to_temp_byte
+    hex.mov HEXES_IN_BYTE, temp_byte, repetition_optimization_byte
+    call_inner write_temp_byte_to_pointed_byte
+    return
+
+
+
+
+brainfuck_start:
+
+// The next code was optimized by bf2fj:
+
+// This is version 0_1 of bfcl
+// bfcl is a BrainFuck compiler for Linux written itself in BrainFuck
+// It reads the input from stdin and outputs a Linux ELF binary on stdout
+// Currently no optimization at all is done (which is another reason why
+// this thing is so sloooooooow on my system :) but that is planned for
+// version 0_2
+// Conventions assumed in this program:
+// fields are one byte long and decreasing zero is possible
+// Conventions in the binaries compiled with bfcl:
+// a) fields are one byte long
+// b) there are 30 000 fields
+// c) moving the pointer outside this area will lead to your computer
+// catching fire;
+// nothing is done to prevent you from doing that however
+// d) when end of file is encountered the program stores whatever
+// the Linux syscall returns (I believe it's zero but I'm too lazy to
+// check)
+// e) No checks are made on matching parentheses; maybe for version 0_3 :)
+// And yes; I know the code is far from pretty; far from optimized; and not
+// very well documented; but I'm sending it out anyway because the longer I
+// stare at it the more my head hurts
+// Final word of thanks: many ideas are shamelessly stolen from Brian
+// Raiter's 171 byte BF compiler available from www_muppetlabs_com/~breadbox/
+// For questions and comments you can reach me at
+// vissers@theochem dot kun dot nl
+// You will forgive me for not typing the dots :)
+// Ge Vissers
+// 17 april 2003
+// **************************************************************************
+add_ptr 7
+// reserve some extra space
+// so we can shift the program later
+// Read the program
+// Reading a character is a bit of a nuisance since different compilers
+// use different strategies:
+// a) leave byte unchanged
+// b) set byte to zero
+// c) set byte to 0xff
+// I *believe* the following code snippets catches all three possibilities above
+// so that the program ends on either a null or a 0xff byte
+inc_ptr
+dec_data
+// set character to 0xff
+input
+// read a character
+loop_start loop_op_59
+loop_op_51:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_51
+loop_op_59:
+// copy byte to previous and next field
+inc_ptr
+loop_start loop_op_65
+loop_op_62:
+inc_data
+dec_ptr
+loop_end loop_op_62
+loop_op_65:
+inc_ptr
+// if byte is not zero
+// add one to it
+loop_start loop_op_253
+loop_op_69:
+// if it is still not zero
+set_data 0
+dec_ptr
+// clear the copy
+add_data 5
+loop_start loop_op_93
+loop_op_81:
+dec_ptr
+add_data 248
+inc_ptr
+dec_data
+loop_end loop_op_81
+loop_op_93:
+dec_ptr
+add_data 253
+// subtract plus from input
+loop_start loop_op_220
+loop_op_99:
+// if char is not plus
+dec_data
+// subtract 1 from char
+loop_start loop_op_214
+loop_op_103:
+// if char is not comma
+dec_data
+// subtract 1 from char
+loop_start loop_op_208
+loop_op_107:
+// if char is not minus
+dec_data
+// subtract 1 from char
+loop_start loop_op_202
+loop_op_111:
+// if char is not dot
+add_data 242
+// subtract 14 from char
+loop_start loop_op_196
+loop_op_128:
+// if char is not left angle
+add_data 254
+// subtract 2 from char
+loop_start loop_op_190
+loop_op_133:
+// if char is not right angle
+inc_ptr
+add_data 3
+loop_start loop_op_153
+loop_op_139:
+dec_ptr
+add_data 246
+inc_ptr
+dec_data
+loop_end loop_op_139
+loop_op_153:
+dec_ptr
+inc_data
+// subtract 29 from char
+loop_start loop_op_184
+loop_op_157:
+// if char is not left bracket
+add_data 254
+// subtract 2 from char
+loop_start loop_op_179
+loop_op_162:
+// if char is not right bracket
+dec_ptr
+add_data 248
+inc_ptr
+// set opcode to minus 8
+set_data 0
+// clear character
+loop_end loop_op_162
+loop_op_179:
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_157
+loop_op_184:
+// end if (char is not left bracket)
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_133
+loop_op_190:
+// end if (char is not right angle)
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_128
+loop_op_196:
+// end if (char is not left angle)
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_111
+loop_op_202:
+// end if (char is not dot)
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_107
+loop_op_208:
+// end if (char is not minus)
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_103
+loop_op_214:
+// end if (char is not comma)
+dec_ptr
+inc_data
+inc_ptr
+// increase opcode
+loop_end loop_op_99
+loop_op_220:
+// end if (char is not plus)
+dec_ptr
+inc_data
+// increase opcode
+loop_start loop_op_229
+loop_op_225:
+// if opcode is not zero
+inc_ptr
+// move to next field
+loop_end loop_op_225
+loop_op_229:
+// end if (opcode is not zero)
+add_ptr 2
+dec_data
+input
+// read in a new character
+loop_start loop_op_244
+loop_op_236:
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+inc_ptr
+inc_data
+dec_ptr
+loop_end loop_op_236
+loop_op_244:
+// copy to previous and next field
+inc_ptr
+loop_start loop_op_250
+loop_op_247:
+inc_data
+dec_ptr
+loop_end loop_op_247
+loop_op_250:
+inc_ptr
+// if not null check if it's 0xff
+loop_end loop_op_69
+loop_op_253:
+// end while not EOF
+sub_ptr 2
+set_data 0
+// clear possible 0xff
+add_ptr 2
+add_data 8
+loop_start loop_op_285
+loop_op_271:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_271
+loop_op_285:
+dec_ptr
+add_data 4
+dec_ptr
+// 84 bytes for ELF header
+inc_ptr
+add_data 12
+dec_ptr
+// 12 bytes to initialize program
+inc_ptr
+add_data 6
+dec_ptr
+// 6 bytes to end program
+// Calculate file size
+sub_ptr 2
+loop_start loop_op_322
+loop_op_320:
+dec_ptr
+loop_end loop_op_320
+loop_op_322:
+inc_ptr
+// move to first opcode
+loop_start loop_op_920
+loop_op_325:
+// while opcode exists
+loop_start loop_op_337
+loop_op_327:
+sub_ptr 2
+inc_data
+dec_ptr
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_327
+loop_op_337:
+sub_ptr 2
+// copy to two previous fields
+dec_data
+// decrease
+loop_start loop_op_686
+loop_op_343:
+// if opcode is not plus
+dec_data
+// decrease opcode
+loop_start loop_op_635
+loop_op_347:
+// if opcode is not comma
+dec_data
+// decrease opcode
+loop_start loop_op_588
+loop_op_351:
+// if opcode is not minus
+dec_data
+// decrease opcode
+loop_start loop_op_537
+loop_op_355:
+// if opcode is not dot
+dec_data
+// decrease opcode
+loop_start loop_op_491
+loop_op_359:
+// if opcode is not left angle
+dec_data
+// decrease opcode
+loop_start loop_op_445
+loop_op_363:
+// if opcode is not right angle
+dec_data
+// decrease opcode
+loop_start loop_op_392
+loop_op_367:
+// if opcode is not left bracket
+add_ptr 3
+loop_start loop_op_374
+loop_op_372:
+inc_ptr
+loop_end loop_op_372
+loop_op_374:
+inc_ptr
+add_data 5
+// indicate 5 bytes should be added
+sub_ptr 2
+loop_start loop_op_386
+loop_op_384:
+dec_ptr
+loop_end loop_op_384
+loop_op_386:
+dec_data
+sub_ptr 2
+// set indicator to minus one
+dec_data
+loop_end loop_op_367
+loop_op_392:
+// end if (opcode is not left bracket)
+add_ptr 2
+loop_start loop_op_404
+loop_op_396:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_396
+loop_op_404:
+dec_ptr
+loop_start loop_op_411
+loop_op_406:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_406
+loop_op_411:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_443
+loop_op_415:
+// else (opcode is left bracket)
+add_ptr 3
+loop_start loop_op_422
+loop_op_420:
+inc_ptr
+loop_end loop_op_420
+loop_op_422:
+inc_ptr
+add_data 8
+// indicate 8 bytes should be added
+sub_ptr 2
+loop_start loop_op_437
+loop_op_435:
+dec_ptr
+loop_end loop_op_435
+loop_op_437:
+dec_data
+sub_ptr 2
+// set indicator to minus one
+dec_data
+loop_end loop_op_415
+loop_op_443:
+// end else (opcode is left bracket)
+loop_end loop_op_363
+loop_op_445:
+// end if (opcode is not right angle)
+add_ptr 2
+loop_start loop_op_457
+loop_op_449:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_449
+loop_op_457:
+dec_ptr
+loop_start loop_op_464
+loop_op_459:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_459
+loop_op_464:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_489
+loop_op_468:
+// else (opcode is right angle)
+add_ptr 3
+loop_start loop_op_475
+loop_op_473:
+inc_ptr
+loop_end loop_op_473
+loop_op_475:
+inc_ptr
+inc_data
+// indicate 1 byte should be added
+sub_ptr 2
+loop_start loop_op_483
+loop_op_481:
+dec_ptr
+loop_end loop_op_481
+loop_op_483:
+dec_data
+sub_ptr 2
+// set indicator to minus 1
+dec_data
+loop_end loop_op_468
+loop_op_489:
+// end else (opcode is right angle)
+loop_end loop_op_359
+loop_op_491:
+// end if (opcode is not left angle)
+add_ptr 2
+loop_start loop_op_503
+loop_op_495:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_495
+loop_op_503:
+dec_ptr
+loop_start loop_op_510
+loop_op_505:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_505
+loop_op_510:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_535
+loop_op_514:
+// else (opcode is left angle)
+add_ptr 3
+loop_start loop_op_521
+loop_op_519:
+inc_ptr
+loop_end loop_op_519
+loop_op_521:
+inc_ptr
+inc_data
+// indicate 1 byte should be added
+sub_ptr 2
+loop_start loop_op_529
+loop_op_527:
+dec_ptr
+loop_end loop_op_527
+loop_op_529:
+dec_data
+sub_ptr 2
+// set indicator to minus 1
+dec_data
+loop_end loop_op_514
+loop_op_535:
+// end else (opcode is left angle)
+loop_end loop_op_355
+loop_op_537:
+// end if (opcode is not dot)
+add_ptr 2
+loop_start loop_op_549
+loop_op_541:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_541
+loop_op_549:
+dec_ptr
+loop_start loop_op_556
+loop_op_551:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_551
+loop_op_556:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_586
+loop_op_560:
+// else (opcode is dot)
+add_ptr 3
+loop_start loop_op_567
+loop_op_565:
+inc_ptr
+loop_end loop_op_565
+loop_op_567:
+inc_ptr
+add_data 6
+// indicate 6 bytes should be added
+sub_ptr 2
+loop_start loop_op_580
+loop_op_578:
+dec_ptr
+loop_end loop_op_578
+loop_op_580:
+dec_data
+sub_ptr 2
+// set indicator to minus 1
+dec_data
+loop_end loop_op_560
+loop_op_586:
+// end else (opcode is dot)
+loop_end loop_op_351
+loop_op_588:
+// end if (opcode is not minus)
+add_ptr 2
+loop_start loop_op_600
+loop_op_592:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_592
+loop_op_600:
+dec_ptr
+loop_start loop_op_607
+loop_op_602:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_602
+loop_op_607:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_633
+loop_op_611:
+// else (opcode is minus)
+add_ptr 3
+loop_start loop_op_618
+loop_op_616:
+inc_ptr
+loop_end loop_op_616
+loop_op_618:
+inc_ptr
+add_data 2
+// indicate 2 bytes should be added
+sub_ptr 2
+loop_start loop_op_627
+loop_op_625:
+dec_ptr
+loop_end loop_op_625
+loop_op_627:
+dec_data
+sub_ptr 2
+// set indicator to minus 1
+dec_data
+loop_end loop_op_611
+loop_op_633:
+// end else (opcode is minus)
+loop_end loop_op_347
+loop_op_635:
+// end if (opcode is not comma)
+add_ptr 2
+loop_start loop_op_647
+loop_op_639:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_639
+loop_op_647:
+dec_ptr
+loop_start loop_op_654
+loop_op_649:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_649
+loop_op_654:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_684
+loop_op_658:
+// else (opcode is comma)
+add_ptr 3
+loop_start loop_op_665
+loop_op_663:
+inc_ptr
+loop_end loop_op_663
+loop_op_665:
+inc_ptr
+add_data 6
+// indicate 6 bytes should be added
+sub_ptr 2
+loop_start loop_op_678
+loop_op_676:
+dec_ptr
+loop_end loop_op_676
+loop_op_678:
+dec_data
+sub_ptr 2
+// set indicator to minus 1
+dec_data
+loop_end loop_op_658
+loop_op_684:
+// end else (opcode is comma)
+loop_end loop_op_343
+loop_op_686:
+// end if (opcode is not plus)
+add_ptr 2
+loop_start loop_op_698
+loop_op_690:
+dec_ptr
+dec_data
+dec_ptr
+dec_data
+add_ptr 2
+inc_data
+loop_end loop_op_690
+loop_op_698:
+dec_ptr
+loop_start loop_op_705
+loop_op_700:
+inc_ptr
+dec_data
+dec_ptr
+inc_data
+loop_end loop_op_700
+loop_op_705:
+dec_ptr
+inc_data
+// copy indicator and increase
+loop_start loop_op_731
+loop_op_709:
+// else (opcode is plus)
+add_ptr 3
+loop_start loop_op_716
+loop_op_714:
+inc_ptr
+loop_end loop_op_714
+loop_op_716:
+inc_ptr
+add_data 2
+// indicate 2 bytes should be added
+sub_ptr 2
+loop_start loop_op_725
+loop_op_723:
+dec_ptr
+loop_end loop_op_723
+loop_op_725:
+dec_data
+sub_ptr 2
+// set indicator to minus 1
+dec_data
+loop_end loop_op_709
+loop_op_731:
+// end else (opcode is plus)
+add_ptr 2
+inc_data
+inc_ptr
+loop_start loop_op_739
+loop_op_737:
+inc_ptr
+loop_end loop_op_737
+loop_op_739:
+inc_ptr
+// move to increment
+loop_start loop_op_912
+loop_op_742:
+inc_ptr
+inc_data
+// increase byte 1
+loop_start loop_op_760
+loop_op_746:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_746
+loop_op_760:
+add_ptr 5
+loop_start loop_op_779
+loop_op_766:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_766
+loop_op_779:
+// copy byte 1
+dec_ptr
+loop_start loop_op_789
+loop_op_782:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_782
+loop_op_789:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_902
+loop_op_793:
+dec_data
+// if overflow
+sub_ptr 4
+inc_data
+// increase byte 2
+loop_start loop_op_814
+loop_op_802:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_802
+loop_op_814:
+add_ptr 4
+loop_start loop_op_830
+loop_op_819:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_819
+loop_op_830:
+// copy byte 2
+dec_ptr
+loop_start loop_op_840
+loop_op_833:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_833
+loop_op_840:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_900
+loop_op_844:
+dec_data
+// if overflow
+sub_ptr 3
+inc_data
+// increase byte 3
+loop_start loop_op_862
+loop_op_852:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_852
+loop_op_862:
+add_ptr 3
+loop_start loop_op_875
+loop_op_866:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_866
+loop_op_875:
+// copy byte 3
+dec_ptr
+loop_start loop_op_885
+loop_op_878:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_878
+loop_op_885:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_898
+loop_op_889:
+dec_data
+// if overflow
+sub_ptr 2
+inc_data
+// increase byte 4
+add_ptr 2
+loop_end loop_op_889
+loop_op_898:
+// end if
+loop_end loop_op_844
+loop_op_900:
+// end if
+loop_end loop_op_793
+loop_op_902:
+// end if
+sub_ptr 6
+dec_data
+// decrease increment
+loop_end loop_op_742
+loop_op_912:
+sub_ptr 2
+loop_start loop_op_917
+loop_op_915:
+dec_ptr
+loop_end loop_op_915
+loop_op_917:
+inc_ptr
+// move to next opcode
+loop_end loop_op_325
+loop_op_920:
+add_ptr 6
+// move behind file size
+inc_ptr
+add_data 8
+loop_start loop_op_957
+loop_op_937:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_937
+loop_op_957:
+dec_ptr
+dec_data
+output
+// output ELF magic bytes
+inc_ptr
+add_data 7
+loop_start loop_op_982
+loop_op_970:
+dec_ptr
+add_data 248
+inc_ptr
+dec_data
+loop_end loop_op_970
+loop_op_982:
+dec_ptr
+add_data 254
+output
+add_data 7
+output
+add_data 250
+output
+set_data 1
+output
+output
+output
+dec_data
+output
+output
+output
+output
+output
+output
+output
+output
+output
+add_data 2
+output
+add_data 254
+output
+add_data 3
+output
+add_data 253
+output
+inc_data
+output
+dec_data
+output
+output
+output
+// print rest of ELF header
+inc_ptr
+add_data 8
+loop_start loop_op_1063
+loop_op_1049:
+dec_ptr
+add_data 10
+inc_ptr
+dec_data
+loop_end loop_op_1049
+loop_op_1063:
+dec_ptr
+add_data 4
+output
+inc_ptr
+add_data 6
+loop_start loop_op_1088
+loop_op_1077:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_1077
+loop_op_1088:
+dec_ptr
+add_data 2
+output
+set_data 4
+output
+add_data 4
+output
+inc_ptr
+add_data 6
+loop_start loop_op_1124
+loop_op_1113:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_1113
+loop_op_1124:
+dec_ptr
+add_data 2
+output
+set_data 0
+output
+output
+output
+output
+output
+output
+output
+output
+output
+output
+output
+inc_ptr
+add_data 7
+loop_start loop_op_1162
+loop_op_1151:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_1151
+loop_op_1162:
+dec_ptr
+add_data 3
+output
+inc_ptr
+output
+add_data 4
+loop_start loop_op_1183
+loop_op_1174:
+dec_ptr
+add_data 251
+inc_ptr
+dec_data
+loop_end loop_op_1174
+loop_op_1183:
+dec_ptr
+output
+inc_ptr
+output
+inc_data
+output
+dec_data
+output
+dec_ptr
+add_data 8
+output
+set_data 0
+output
+output
+output
+output
+output
+inc_data
+output
+dec_data
+output
+output
+output
+output
+output
+output
+output
+output
+inc_ptr
+add_data 8
+loop_start loop_op_1250
+loop_op_1230:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_1230
+loop_op_1250:
+dec_ptr
+output
+inc_ptr
+add_data 4
+output
+add_data 4
+output
+inc_ptr
+output
+sub_ptr 2
+output
+inc_ptr
+add_data 252
+output
+add_data 4
+output
+sub_ptr 5
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// this is file size
+// Copy the file size since we need it to initialize ecx
+inc_ptr
+set_data 0
+inc_ptr
+set_data 0
+sub_ptr 2
+// clear the fields
+sub_ptr 3
+loop_start loop_op_1322
+loop_op_1308:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1308
+loop_op_1322:
+add_ptr 5
+loop_start loop_op_1341
+loop_op_1328:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1328
+loop_op_1341:
+// copy the bytes
+sub_ptr 4
+loop_start loop_op_1361
+loop_op_1347:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1347
+loop_op_1361:
+add_ptr 5
+loop_start loop_op_1380
+loop_op_1367:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1367
+loop_op_1380:
+sub_ptr 4
+loop_start loop_op_1399
+loop_op_1385:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1385
+loop_op_1399:
+add_ptr 5
+loop_start loop_op_1418
+loop_op_1405:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1405
+loop_op_1418:
+sub_ptr 4
+loop_start loop_op_1437
+loop_op_1423:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1423
+loop_op_1437:
+add_ptr 5
+loop_start loop_op_1456
+loop_op_1443:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1443
+loop_op_1456:
+// We have to add 30 000 = 0x75 30 to the file size
+// Start with 0x30
+add_ptr 3
+add_data 6
+loop_start loop_op_1480
+loop_op_1468:
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_1468
+loop_op_1480:
+dec_ptr
+// set to 0x30
+loop_start loop_op_1648
+loop_op_1483:
+// while increment is not 0
+sub_ptr 6
+inc_data
+// increase byte 1
+loop_start loop_op_1507
+loop_op_1493:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1493
+loop_op_1507:
+add_ptr 5
+loop_start loop_op_1526
+loop_op_1513:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1513
+loop_op_1526:
+// copy byte 1
+dec_ptr
+loop_start loop_op_1536
+loop_op_1529:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_1529
+loop_op_1536:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_1644
+loop_op_1540:
+dec_data
+sub_ptr 4
+inc_data
+// if overflow increase byte 2
+loop_start loop_op_1560
+loop_op_1548:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_1548
+loop_op_1560:
+add_ptr 4
+loop_start loop_op_1576
+loop_op_1565:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_1565
+loop_op_1576:
+// copy byte 2
+dec_ptr
+loop_start loop_op_1586
+loop_op_1579:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_1579
+loop_op_1586:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_1643
+loop_op_1590:
+dec_data
+sub_ptr 3
+inc_data
+// if overflow increase byte 3
+loop_start loop_op_1607
+loop_op_1597:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_1597
+loop_op_1607:
+add_ptr 3
+loop_start loop_op_1620
+loop_op_1611:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_1611
+loop_op_1620:
+// copy byte 3
+dec_ptr
+loop_start loop_op_1630
+loop_op_1623:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_1623
+loop_op_1630:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_1641
+loop_op_1634:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1634
+loop_op_1641:
+// if overflow increase byte 4
+loop_end loop_op_1590
+loop_op_1643:
+loop_end loop_op_1540
+loop_op_1644:
+inc_ptr
+dec_data
+// decrease increment
+loop_end loop_op_1483
+loop_op_1648:
+sub_ptr 6
+output
+// print first byte
+// Now do 0x75 00
+add_ptr 7
+add_data 7
+loop_start loop_op_1692
+loop_op_1672:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_1672
+loop_op_1692:
+dec_ptr
+add_data 5
+// set increment
+loop_start loop_op_1808
+loop_op_1700:
+// while increment is not 0
+sub_ptr 5
+inc_data
+// increase byte 2
+loop_start loop_op_1721
+loop_op_1709:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_1709
+loop_op_1721:
+add_ptr 4
+loop_start loop_op_1737
+loop_op_1726:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_1726
+loop_op_1737:
+// copy byte 2
+dec_ptr
+loop_start loop_op_1747
+loop_op_1740:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_1740
+loop_op_1747:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_1804
+loop_op_1751:
+dec_data
+sub_ptr 3
+inc_data
+// if overflow increase byte 3
+loop_start loop_op_1768
+loop_op_1758:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_1758
+loop_op_1768:
+add_ptr 3
+loop_start loop_op_1781
+loop_op_1772:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_1772
+loop_op_1781:
+// copy byte 3
+dec_ptr
+loop_start loop_op_1791
+loop_op_1784:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_1784
+loop_op_1791:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_1802
+loop_op_1795:
+sub_ptr 2
+inc_data
+add_ptr 2
+dec_data
+loop_end loop_op_1795
+loop_op_1802:
+// if overflow increase byte 4
+loop_end loop_op_1751
+loop_op_1804:
+inc_ptr
+dec_data
+// decrease increment
+loop_end loop_op_1700
+loop_op_1808:
+sub_ptr 5
+output
+inc_ptr
+output
+inc_ptr
+output
+// print other 3 bytes
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+// clear up
+add_data 6
+output
+add_data 250
+output
+output
+output
+output
+add_data 16
+output
+// print rest of header
+set_data 0
+output
+output
+// add 0x80 00 to file size
+inc_ptr
+add_data 8
+loop_start loop_op_1906
+loop_op_1886:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_1886
+loop_op_1906:
+dec_ptr
+// set counter to 0x80
+loop_start loop_op_2028
+loop_op_1909:
+sub_ptr 3
+inc_data
+// increase byte 2
+loop_start loop_op_1929
+loop_op_1915:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_1915
+loop_op_1929:
+add_ptr 5
+loop_start loop_op_1948
+loop_op_1935:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_1935
+loop_op_1948:
+// copy byte 2
+dec_ptr
+loop_start loop_op_1958
+loop_op_1951:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_1951
+loop_op_1958:
+// if no overflow set indicator to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2023
+loop_op_1962:
+dec_data
+// if overflow
+sub_ptr 4
+inc_data
+// increase byte 3
+loop_start loop_op_1982
+loop_op_1971:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+loop_end loop_op_1971
+loop_op_1982:
+add_ptr 4
+loop_start loop_op_1998
+loop_op_1987:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_1987
+loop_op_1998:
+// copy byte 3
+dec_ptr
+loop_start loop_op_2008
+loop_op_2001:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2001
+loop_op_2008:
+// if no overflow set indicator to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2021
+loop_op_2012:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_2012
+loop_op_2021:
+// if overflow increase byte 4
+loop_end loop_op_1962
+loop_op_2023:
+sub_ptr 2
+dec_data
+// decrease counter
+loop_end loop_op_1909
+loop_op_2028:
+// loop until counter is zero
+// add 0x04 00 00 to file size
+add_data 4
+// set counter to 0x04
+loop_start loop_op_2098
+loop_op_2036:
+sub_ptr 2
+inc_data
+// increase byte 3
+loop_start loop_op_2053
+loop_op_2041:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_2041
+loop_op_2053:
+add_ptr 4
+loop_start loop_op_2069
+loop_op_2058:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_2058
+loop_op_2069:
+// copy byte 3
+dec_ptr
+loop_start loop_op_2079
+loop_op_2072:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2072
+loop_op_2079:
+// if no overflow set indicator to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2092
+loop_op_2083:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_2083
+loop_op_2092:
+// if overflow increase byte 4
+sub_ptr 2
+dec_data
+// decrease counter
+loop_end loop_op_2036
+loop_op_2098:
+// loop until counter is zero
+// add 0x08 00 00 00 to file size
+dec_ptr
+add_data 8
+inc_ptr
+// Initialize registers
+add_ptr 2
+add_data 7
+loop_start loop_op_2132
+loop_op_2121:
+dec_ptr
+add_data 7
+inc_ptr
+dec_data
+loop_end loop_op_2121
+loop_op_2132:
+dec_ptr
+output
+// xor eax eax
+add_ptr 2
+add_data 12
+loop_start loop_op_2170
+loop_op_2150:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_2150
+loop_op_2170:
+dec_ptr
+output
+dec_ptr
+output
+add_ptr 2
+add_data 3
+loop_start loop_op_2193
+loop_op_2180:
+dec_ptr
+add_data 9
+inc_ptr
+dec_data
+loop_end loop_op_2180
+loop_op_2193:
+dec_ptr
+output
+// xor ebx ebx
+inc_ptr
+add_data 4
+loop_start loop_op_2214
+loop_op_2202:
+dec_ptr
+add_data 248
+inc_ptr
+dec_data
+loop_end loop_op_2202
+loop_op_2214:
+dec_ptr
+add_data 254
+output
+sub_ptr 6
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// mov ecx filesize
+add_ptr 2
+output
+add_ptr 2
+add_data 5
+loop_start loop_op_2252
+loop_op_2243:
+dec_ptr
+add_data 5
+inc_ptr
+dec_data
+loop_end loop_op_2243
+loop_op_2252:
+dec_ptr
+output
+// xor edx edx
+inc_ptr
+add_data 4
+loop_start loop_op_2271
+loop_op_2261:
+sub_ptr 2
+add_data 4
+add_ptr 2
+dec_data
+loop_end loop_op_2261
+loop_op_2271:
+sub_ptr 2
+inc_data
+output
+// inc edx
+// Now start compiling
+inc_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+// clean up
+sub_ptr 6
+loop_start loop_op_2315
+loop_op_2313:
+dec_ptr
+loop_end loop_op_2313
+loop_op_2315:
+inc_ptr
+// move to first instruction
+loop_start loop_op_4042
+loop_op_2318:
+// while opcode exists
+dec_data
+// decrease opcode
+loop_start loop_op_4020
+loop_op_2322:
+// if opcode is not plus
+dec_data
+// decrease opcode
+loop_start loop_op_3903
+loop_op_2326:
+// if opcode is not comma
+dec_data
+// decrease opcode
+loop_start loop_op_3865
+loop_op_2330:
+// if opcode is not minus
+dec_data
+// decrease opcode
+loop_start loop_op_3747
+loop_op_2334:
+// if opcode is not dot
+dec_data
+// decrease opcode
+loop_start loop_op_3705
+loop_op_2338:
+// if opcode is not left angle
+dec_data
+// decrease opcode
+loop_start loop_op_3664
+loop_op_2342:
+// if opcode is not right angle
+dec_data
+// decrease opcode
+loop_start loop_op_2863
+loop_op_2346:
+// if opcode is not left bracket
+dec_ptr
+add_data 4
+loop_start loop_op_2363
+loop_op_2353:
+inc_ptr
+add_data 250
+dec_ptr
+dec_data
+loop_end loop_op_2353
+loop_op_2363:
+inc_ptr
+output
+// output e9
+set_data 0
+// clear this field
+inc_ptr
+loop_start loop_op_2374
+loop_op_2372:
+inc_ptr
+loop_end loop_op_2372
+loop_op_2374:
+add_ptr 8
+loop_start loop_op_2390
+loop_op_2383:
+add_ptr 6
+loop_end loop_op_2383
+loop_op_2390:
+// move to end of loop size stack
+add_data 248
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+inc_ptr
+dec_data
+sub_ptr 3
+// initialize increment
+sub_ptr 5
+// move to byte 1 of size
+loop_start loop_op_2593
+loop_op_2416:
+// while byte 1 is not zero
+add_ptr 5
+dec_data
+// decrease byte 1
+loop_start loop_op_2439
+loop_op_2425:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_2425
+loop_op_2439:
+// copy byte 1
+add_ptr 5
+loop_start loop_op_2459
+loop_op_2446:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_2446
+loop_op_2459:
+dec_ptr
+loop_start loop_op_2468
+loop_op_2461:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2461
+loop_op_2468:
+// if no underflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2579
+loop_op_2472:
+dec_data
+// if underflow
+sub_ptr 4
+dec_data
+// decrease byte 2
+loop_start loop_op_2493
+loop_op_2481:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_2481
+loop_op_2493:
+// copy byte 2
+add_ptr 4
+loop_start loop_op_2510
+loop_op_2499:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_2499
+loop_op_2510:
+dec_ptr
+loop_start loop_op_2519
+loop_op_2512:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2512
+loop_op_2519:
+// if no underflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2577
+loop_op_2523:
+dec_data
+// if underflow
+sub_ptr 3
+dec_data
+// decrease byte 3
+loop_start loop_op_2541
+loop_op_2531:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2531
+loop_op_2541:
+// copy byte 3
+add_ptr 3
+loop_start loop_op_2555
+loop_op_2546:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_2546
+loop_op_2555:
+dec_ptr
+loop_start loop_op_2564
+loop_op_2557:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2557
+loop_op_2564:
+// if no underflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2575
+loop_op_2568:
+dec_data
+sub_ptr 2
+dec_data
+add_ptr 2
+loop_end loop_op_2568
+loop_op_2575:
+// if underflow decrease byte 4
+loop_end loop_op_2523
+loop_op_2577:
+// end if
+loop_end loop_op_2472
+loop_op_2579:
+// end if
+sub_ptr 10
+dec_data
+// decrease byte 1 of size
+loop_end loop_op_2416
+loop_op_2593:
+// end while
+inc_ptr
+// move to byte 2 of size
+loop_start loop_op_2715
+loop_op_2597:
+// while byte 2 is not zero
+add_ptr 5
+dec_data
+// decrease byte 2
+loop_start loop_op_2618
+loop_op_2606:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_2606
+loop_op_2618:
+// copy byte two
+add_ptr 4
+loop_start loop_op_2635
+loop_op_2624:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_2624
+loop_op_2635:
+dec_ptr
+loop_start loop_op_2644
+loop_op_2637:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2637
+loop_op_2644:
+// if no underflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2702
+loop_op_2648:
+dec_data
+// if underflow
+sub_ptr 3
+dec_data
+// decrease byte 3
+loop_start loop_op_2666
+loop_op_2656:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2656
+loop_op_2666:
+// copy byte 3
+add_ptr 3
+loop_start loop_op_2680
+loop_op_2671:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_2671
+loop_op_2680:
+dec_ptr
+loop_start loop_op_2689
+loop_op_2682:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2682
+loop_op_2689:
+// if no underflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2700
+loop_op_2693:
+dec_data
+sub_ptr 2
+dec_data
+add_ptr 2
+loop_end loop_op_2693
+loop_op_2700:
+// if underflow decrease byte 4
+loop_end loop_op_2648
+loop_op_2702:
+// end if
+sub_ptr 9
+dec_data
+// decrease byte 2 of size
+loop_end loop_op_2597
+loop_op_2715:
+// end while
+inc_ptr
+// move to byte 3 of size
+loop_start loop_op_2784
+loop_op_2719:
+// while byte 3 is not zero
+add_ptr 5
+dec_data
+// decrease byte 3
+loop_start loop_op_2738
+loop_op_2728:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_2728
+loop_op_2738:
+// copy byte 3
+add_ptr 3
+loop_start loop_op_2752
+loop_op_2743:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_2743
+loop_op_2752:
+dec_ptr
+loop_start loop_op_2761
+loop_op_2754:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_2754
+loop_op_2761:
+// if no underflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_2772
+loop_op_2765:
+dec_data
+sub_ptr 2
+dec_data
+add_ptr 2
+loop_end loop_op_2765
+loop_op_2772:
+// if underflow decrease byte 4
+sub_ptr 8
+dec_data
+// decrease byte 3 of size
+loop_end loop_op_2719
+loop_op_2784:
+inc_ptr
+// move to byte 4 of size
+loop_start loop_op_2802
+loop_op_2787:
+// while byte 4 is not zero
+add_ptr 5
+dec_data
+sub_ptr 5
+dec_data
+// decrease byte 4
+loop_end loop_op_2787
+loop_op_2802:
+inc_ptr
+dec_data
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// print increment
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+dec_ptr
+set_data 0
+// clear increment
+sub_ptr 6
+dec_data
+// remove size from stack
+dec_ptr
+loop_start loop_op_2846
+loop_op_2839:
+sub_ptr 6
+loop_end loop_op_2839
+loop_op_2846:
+sub_ptr 8
+loop_start loop_op_2857
+loop_op_2855:
+dec_ptr
+loop_end loop_op_2855
+loop_op_2857:
+// move back to opcode
+dec_ptr
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_2346
+loop_op_2863:
+// end if (opcode is not left bracket)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3659
+loop_op_2868:
+// else (opcode is left bracket)
+add_data 6
+loop_start loop_op_2888
+loop_op_2876:
+inc_ptr
+add_data 8
+dec_ptr
+dec_data
+loop_end loop_op_2876
+loop_op_2888:
+// set to 38
+inc_ptr
+add_data 2
+output
+add_data 247
+output
+// output 3a 31
+dec_ptr
+add_data 15
+output
+// output 0f
+inc_data
+loop_start loop_op_2933
+loop_op_2924:
+inc_ptr
+add_data 5
+dec_ptr
+dec_data
+loop_end loop_op_2924
+loop_op_2933:
+inc_ptr
+add_data 3
+output
+// output 84
+set_data 0
+// clear this byte
+// clear the byte counter
+inc_data
+// set nesting level to one
+loop_start loop_op_3029
+loop_op_2947:
+// while nesting greater than 0
+inc_ptr
+loop_start loop_op_2962
+loop_op_2950:
+sub_ptr 3
+inc_data
+dec_ptr
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_2950
+loop_op_2962:
+// copy opcode before nesting level
+sub_ptr 3
+add_data 249
+// subtract 7 from opcode
+loop_start loop_op_3006
+loop_op_2975:
+// if opcode is not left bracket
+dec_data
+// decrease opcode
+loop_start loop_op_2989
+loop_op_2979:
+// if opcode is not right bracket
+set_data 0
+// clear field
+inc_ptr
+dec_data
+dec_ptr
+// set indicator to minus 1
+loop_end loop_op_2979
+loop_op_2989:
+// end if opcode is not right braket
+inc_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3001
+loop_op_2994:
+// else (opcode is right bracket)
+inc_ptr
+dec_data
+dec_ptr
+dec_data
+// decrease nesting level
+loop_end loop_op_2994
+loop_op_3001:
+// end else (opcode is right bracket)
+dec_data
+dec_ptr
+// set indicator to minus 1
+loop_end loop_op_2975
+loop_op_3006:
+// end if (opcode is not left bracket)
+inc_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3018
+loop_op_3011:
+// else (opcode is left bracket)
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+// increase nesting level
+loop_end loop_op_3011
+loop_op_3018:
+// end else (opcode is left bracket)
+inc_ptr
+loop_start loop_op_3026
+loop_op_3021:
+inc_ptr
+inc_data
+dec_ptr
+dec_data
+loop_end loop_op_3021
+loop_op_3026:
+inc_ptr
+// copy nesting to next field
+loop_end loop_op_2947
+loop_op_3029:
+// end while (nesting greater than 0)
+sub_ptr 4
+// move to last opcode in loop
+loop_start loop_op_3442
+loop_op_3036:
+// while there are opcodes
+loop_start loop_op_3050
+loop_op_3038:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_3038
+loop_op_3050:
+// copy the opcode twice
+add_ptr 3
+// move to first copy
+dec_data
+// decrease opcode
+loop_start loop_op_3217
+loop_op_3058:
+// if opcode is not plus
+dec_data
+// decrease opcode
+loop_start loop_op_3195
+loop_op_3062:
+// if opcode is not comma
+dec_data
+// decrease opcode
+loop_start loop_op_3177
+loop_op_3066:
+// if opcode is not minus
+dec_data
+// decrease opcode
+loop_start loop_op_3155
+loop_op_3070:
+// if opcode is not dot
+dec_data
+// decrease opcode
+loop_start loop_op_3138
+loop_op_3074:
+// if opcode is not left angle
+dec_data
+// decrease opcode
+loop_start loop_op_3121
+loop_op_3078:
+// if opcode is not right angle
+dec_data
+// decrease opcode
+loop_start loop_op_3097
+loop_op_3082:
+// if opcode is not left bracket
+dec_data
+// then it must be right bracket
+// set increment to five bytes
+sub_ptr 2
+add_data 5
+inc_ptr
+dec_data
+inc_ptr
+loop_end loop_op_3082
+loop_op_3097:
+// end if (opcode is not left bracket)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3116
+loop_op_3102:
+// else (opcode is left bracket)
+// set increment to 8 bytes
+dec_ptr
+add_data 8
+inc_ptr
+dec_data
+loop_end loop_op_3102
+loop_op_3116:
+// end else (opcode is left bracket)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_3078
+loop_op_3121:
+// end if (opcode is not right angle)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3133
+loop_op_3126:
+// else (opcode is right angle)
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+// set increment to 1 byte
+loop_end loop_op_3126
+loop_op_3133:
+// end else (opcode is right angle)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_3074
+loop_op_3138:
+// end if (opcode is not left angle)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3150
+loop_op_3143:
+// else (opcode is left angle)
+dec_ptr
+inc_data
+inc_ptr
+dec_data
+// set increment to 1 byte
+loop_end loop_op_3143
+loop_op_3150:
+// end else (opcode is left angle)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_3070
+loop_op_3155:
+// end else (opcode is not dot)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3172
+loop_op_3160:
+// else (opcode is dot)
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+// set increment to 6 bytes
+loop_end loop_op_3160
+loop_op_3172:
+// end else (opcode is dot)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_3066
+loop_op_3177:
+// end if (opcode is not minus)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3190
+loop_op_3182:
+// else (opcode is minus)
+dec_ptr
+add_data 2
+inc_ptr
+dec_data
+// set increment to two bytes
+loop_end loop_op_3182
+loop_op_3190:
+// end else (opcode is minus)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_3062
+loop_op_3195:
+// end if (opcode is not comma)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3212
+loop_op_3200:
+// else (opcode is comma)
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+// set increment to 6 bytes
+loop_end loop_op_3200
+loop_op_3212:
+// end else (opcode is comma)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_3058
+loop_op_3217:
+// end if (opcode is not plus)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3230
+loop_op_3222:
+// else (opcode is plus)
+dec_ptr
+add_data 2
+inc_ptr
+dec_data
+// set increment to 2 bytes
+loop_end loop_op_3222
+loop_op_3230:
+// end else (opcode is plus)
+dec_ptr
+loop_start loop_op_3250
+loop_op_3233:
+add_ptr 3
+loop_start loop_op_3239
+loop_op_3237:
+inc_ptr
+loop_end loop_op_3237
+loop_op_3239:
+inc_ptr
+inc_data
+sub_ptr 2
+loop_start loop_op_3246
+loop_op_3244:
+dec_ptr
+loop_end loop_op_3244
+loop_op_3246:
+sub_ptr 2
+dec_data
+loop_end loop_op_3233
+loop_op_3250:
+// copy increment behind program
+add_ptr 3
+loop_start loop_op_3257
+loop_op_3255:
+inc_ptr
+loop_end loop_op_3255
+loop_op_3257:
+inc_ptr
+// move to increment
+loop_start loop_op_3430
+loop_op_3260:
+// while increment is not zero
+inc_ptr
+inc_data
+// increase byte 1
+loop_start loop_op_3279
+loop_op_3265:
+add_ptr 4
+inc_data
+inc_ptr
+inc_data
+sub_ptr 5
+dec_data
+loop_end loop_op_3265
+loop_op_3279:
+// copy byte 1
+add_ptr 5
+loop_start loop_op_3299
+loop_op_3286:
+sub_ptr 5
+inc_data
+add_ptr 5
+dec_data
+loop_end loop_op_3286
+loop_op_3299:
+dec_ptr
+loop_start loop_op_3308
+loop_op_3301:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_3301
+loop_op_3308:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_3420
+loop_op_3312:
+dec_data
+// if overflow
+sub_ptr 4
+inc_data
+// increase byte 2
+loop_start loop_op_3333
+loop_op_3321:
+add_ptr 3
+inc_data
+inc_ptr
+inc_data
+sub_ptr 4
+dec_data
+loop_end loop_op_3321
+loop_op_3333:
+// copy byte 2
+add_ptr 4
+loop_start loop_op_3350
+loop_op_3339:
+sub_ptr 4
+inc_data
+add_ptr 4
+dec_data
+loop_end loop_op_3339
+loop_op_3350:
+dec_ptr
+loop_start loop_op_3359
+loop_op_3352:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_3352
+loop_op_3359:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_3418
+loop_op_3363:
+dec_data
+// if overflow
+sub_ptr 3
+inc_data
+// increase byte 3
+loop_start loop_op_3381
+loop_op_3371:
+add_ptr 2
+inc_data
+inc_ptr
+inc_data
+sub_ptr 3
+dec_data
+loop_end loop_op_3371
+loop_op_3381:
+// copy byte 3
+add_ptr 3
+loop_start loop_op_3395
+loop_op_3386:
+sub_ptr 3
+inc_data
+add_ptr 3
+dec_data
+loop_end loop_op_3386
+loop_op_3395:
+dec_ptr
+loop_start loop_op_3404
+loop_op_3397:
+inc_ptr
+dec_data
+dec_ptr
+set_data 0
+loop_end loop_op_3397
+loop_op_3404:
+// if no overflow set field to minus 1
+inc_ptr
+inc_data
+loop_start loop_op_3417
+loop_op_3408:
+dec_data
+// if overflow
+sub_ptr 2
+inc_data
+add_ptr 2
+// increase byte 4
+loop_end loop_op_3408
+loop_op_3417:
+loop_end loop_op_3363
+loop_op_3418:
+// end if
+loop_end loop_op_3312
+loop_op_3420:
+// end if
+sub_ptr 6
+dec_data
+// decrease increment
+loop_end loop_op_3260
+loop_op_3430:
+// end while
+sub_ptr 2
+loop_start loop_op_3436
+loop_op_3434:
+dec_ptr
+loop_end loop_op_3434
+loop_op_3436:
+sub_ptr 4
+// move to next opcode
+loop_end loop_op_3036
+loop_op_3442:
+// end while opcode exists
+add_ptr 5
+loop_start loop_op_3451
+loop_op_3449:
+inc_ptr
+loop_end loop_op_3449
+loop_op_3451:
+add_ptr 2
+output
+inc_ptr
+output
+inc_ptr
+output
+inc_ptr
+output
+// output the loop increment
+sub_ptr 3
+// move to byte 1
+// copy byte 1 on stack
+loop_start loop_op_3500
+loop_op_3467:
+add_ptr 6
+loop_start loop_op_3481
+loop_op_3474:
+add_ptr 6
+loop_end loop_op_3474
+loop_op_3481:
+inc_ptr
+inc_data
+sub_ptr 2
+loop_start loop_op_3493
+loop_op_3486:
+sub_ptr 6
+loop_end loop_op_3486
+loop_op_3493:
+sub_ptr 5
+dec_data
+loop_end loop_op_3467
+loop_op_3500:
+inc_ptr
+// move to byte 2
+// copy byte 2 on stack
+loop_start loop_op_3537
+loop_op_3504:
+add_ptr 5
+loop_start loop_op_3517
+loop_op_3510:
+add_ptr 6
+loop_end loop_op_3510
+loop_op_3517:
+add_ptr 2
+inc_data
+sub_ptr 3
+loop_start loop_op_3531
+loop_op_3524:
+sub_ptr 6
+loop_end loop_op_3524
+loop_op_3531:
+sub_ptr 4
+dec_data
+loop_end loop_op_3504
+loop_op_3537:
+inc_ptr
+// move to byte 3
+// copy byte 3 on stack
+loop_start loop_op_3574
+loop_op_3541:
+add_ptr 4
+loop_start loop_op_3553
+loop_op_3546:
+add_ptr 6
+loop_end loop_op_3546
+loop_op_3553:
+add_ptr 3
+inc_data
+sub_ptr 4
+loop_start loop_op_3569
+loop_op_3562:
+sub_ptr 6
+loop_end loop_op_3562
+loop_op_3569:
+sub_ptr 3
+dec_data
+loop_end loop_op_3541
+loop_op_3574:
+inc_ptr
+// move to byte 4
+// copy byte 4 on stack
+loop_start loop_op_3611
+loop_op_3578:
+add_ptr 3
+loop_start loop_op_3589
+loop_op_3582:
+add_ptr 6
+loop_end loop_op_3582
+loop_op_3589:
+add_ptr 4
+inc_data
+sub_ptr 5
+loop_start loop_op_3607
+loop_op_3600:
+sub_ptr 6
+loop_end loop_op_3600
+loop_op_3607:
+sub_ptr 2
+dec_data
+loop_end loop_op_3578
+loop_op_3611:
+// set surrounding 1 bytes
+add_ptr 3
+loop_start loop_op_3623
+loop_op_3616:
+add_ptr 6
+loop_end loop_op_3616
+loop_op_3623:
+inc_data
+add_ptr 5
+inc_data
+sub_ptr 6
+loop_start loop_op_3644
+loop_op_3637:
+sub_ptr 6
+loop_end loop_op_3637
+loop_op_3644:
+sub_ptr 8
+loop_start loop_op_3655
+loop_op_3653:
+dec_ptr
+loop_end loop_op_3653
+loop_op_3655:
+// move back to start of loop
+dec_ptr
+// move to indicator field
+loop_end loop_op_2868
+loop_op_3659:
+// end else (opcode is left bracket)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_2342
+loop_op_3664:
+// end if (opcode is not right angle)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3700
+loop_op_3669:
+// else (opcode is right angle)
+add_data 7
+loop_start loop_op_3690
+loop_op_3678:
+inc_ptr
+add_data 8
+dec_ptr
+dec_data
+loop_end loop_op_3678
+loop_op_3690:
+inc_ptr
+inc_data
+// set to 41
+output
+set_data 0
+dec_ptr
+// output 41 and clear up
+loop_end loop_op_3669
+loop_op_3700:
+// end else (opcode is right angle)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_2338
+loop_op_3705:
+// end if (opcode is not left angle)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3742
+loop_op_3710:
+// else (opcode is left angle)
+add_data 7
+loop_start loop_op_3732
+loop_op_3719:
+inc_ptr
+add_data 9
+dec_ptr
+dec_data
+loop_end loop_op_3719
+loop_op_3732:
+inc_ptr
+inc_data
+output
+// output 49
+set_data 0
+dec_ptr
+// clear up
+loop_end loop_op_3710
+loop_op_3742:
+// end else (opcode is left angle)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_2334
+loop_op_3747:
+// end if (opcode is not dot)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3860
+loop_op_3752:
+// else (opcode is dot)
+add_data 10
+// set to b0
+loop_start loop_op_3785
+loop_op_3765:
+inc_ptr
+add_data 16
+dec_ptr
+dec_data
+loop_end loop_op_3765
+loop_op_3785:
+inc_ptr
+output
+// output b0
+dec_ptr
+add_data 4
+output
+inc_ptr
+add_data 3
+output
+dec_ptr
+add_data 253
+output
+// output 04 b3 01
+inc_data
+loop_start loop_op_3824
+loop_op_3807:
+inc_ptr
+add_data 13
+dec_ptr
+dec_data
+loop_end loop_op_3807
+loop_op_3824:
+inc_ptr
+output
+// output cd
+dec_ptr
+add_data 7
+loop_start loop_op_3851
+loop_op_3836:
+inc_ptr
+add_data 245
+dec_ptr
+dec_data
+loop_end loop_op_3836
+loop_op_3851:
+inc_ptr
+output
+// output 80
+set_data 0
+dec_ptr
+// clear up
+loop_end loop_op_3752
+loop_op_3860:
+// end else (opcode is dot)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_2330
+loop_op_3865:
+// end if (opcode is not minus)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_3898
+loop_op_3870:
+// else (opcode is minus)
+inc_ptr
+add_data 254
+output
+add_data 2
+dec_ptr
+add_data 8
+output
+add_data 247
+// output fe 09
+loop_end loop_op_3870
+loop_op_3898:
+// end else (opcode is minus)
+dec_data
+inc_ptr
+// set indicator to minus 1
+loop_end loop_op_2326
+loop_op_3903:
+// end if (opcode is not comma)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_4015
+loop_op_3908:
+// else (opcode is comma)
+add_data 10
+loop_start loop_op_3940
+loop_op_3920:
+inc_ptr
+add_data 16
+dec_ptr
+dec_data
+loop_end loop_op_3920
+loop_op_3940:
+// set to b0
+inc_ptr
+output
+dec_ptr
+add_data 3
+output
+inc_ptr
+add_data 3
+output
+dec_ptr
+add_data 253
+output
+// output b0 03 b3 00
+add_data 2
+loop_start loop_op_3979
+loop_op_3962:
+inc_ptr
+add_data 13
+dec_ptr
+dec_data
+loop_end loop_op_3962
+loop_op_3979:
+inc_ptr
+output
+dec_ptr
+// output cd
+add_data 7
+loop_start loop_op_4006
+loop_op_3991:
+inc_ptr
+add_data 245
+dec_ptr
+dec_data
+loop_end loop_op_3991
+loop_op_4006:
+inc_ptr
+output
+// output 80
+set_data 0
+dec_ptr
+// clear up
+loop_end loop_op_3908
+loop_op_4015:
+// end else (opcode is comma)
+dec_data
+inc_ptr
+// set indicator to minus one
+loop_end loop_op_2322
+loop_op_4020:
+// end if (opcode is not plus)
+dec_ptr
+inc_data
+// increase indicator
+loop_start loop_op_4037
+loop_op_4025:
+// else (opcode is plus)
+add_data 253
+output
+add_data 3
+output
+dec_data
+// output fe 01
+loop_end loop_op_4025
+loop_op_4037:
+// end else (opcode is plus)
+add_ptr 2
+// move to next opcode
+loop_end loop_op_2318
+loop_op_4042:
+loop_start loop_op_4045
+loop_op_4043:
+inc_ptr
+loop_end loop_op_4043
+loop_op_4045:
+inc_ptr
+// Clean up
+inc_ptr
+add_data 11
+loop_start loop_op_4080
+loop_op_4060:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_4060
+loop_op_4080:
+dec_ptr
+output
+// mov al 1
+inc_ptr
+inc_data
+output
+dec_ptr
+add_data 3
+output
+inc_ptr
+dec_data
+output
+// mov bl 0
+add_data 4
+loop_start loop_op_4110
+loop_op_4100:
+dec_ptr
+add_data 6
+inc_ptr
+dec_data
+loop_end loop_op_4100
+loop_op_4110:
+dec_ptr
+add_data 2
+output
+// int 0x80
+add_ptr 2
+add_data 8
+loop_start loop_op_4146
+loop_op_4126:
+dec_ptr
+add_data 16
+inc_ptr
+dec_data
+loop_end loop_op_4126
+loop_op_4146:
+dec_ptr
+output
+
+stl.loop
+
+
+brainfuck_memory:
+reserve dw * 30000

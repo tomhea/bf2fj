@@ -129,7 +129,15 @@ BRAINFUCK_ORG_DIRS = [
 ]
 
 ARCHIVE_INNER_SRC_DIR = [
-    # TODO
+    ARCHIVE_INNER_SRC / '666',
+    ARCHIVE_INNER_SRC / 'cat',
+    ARCHIVE_INNER_SRC / 'cat2',
+    ARCHIVE_INNER_SRC / 'hello',
+    ARCHIVE_INNER_SRC / 'mul',
+    ARCHIVE_INNER_SRC / 'mul10',
+    ARCHIVE_INNER_SRC / 'prime',
+    ARCHIVE_INNER_SRC / 'rev',
+    ARCHIVE_INNER_SRC / 'varia',
 ]
 
 ARCHIVE_PROG_DIR = [
@@ -210,7 +218,6 @@ LINUSAKESSON_DIR = [
 ]
 
 
-# TODO add flag to indicate if should compile or compile+run.
 PROGRAM_DIRECTORIES = (
     ARCHIVE_QUINE_DIRS +
     SIMPLE_PRINTS_DIRS +

@@ -214,7 +214,8 @@ ARCHIVE_LIB_DIR = [
 ]
 
 LINUSAKESSON_DIR = [
-    # TODO
+    LINUSAKESSON_PATH / 'game_of_life',
+    LINUSAKESSON_PATH / 'quine',
 ]
 
 

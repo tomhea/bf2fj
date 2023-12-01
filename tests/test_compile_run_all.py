@@ -3,7 +3,7 @@ import pytest
 from flipjump import assemble_and_run_test_output
 
 from bf2fj import compile_brainfuck_file_to_flipjump_file
-from test_cases import PROGRAM_DIRECTORIES, PROGRAM_IDS
+from tests.test_cases import PROGRAM_DIRECTORIES, PROGRAM_IDS
 
 
 DEFAULT_FJM_WIDTH = 32

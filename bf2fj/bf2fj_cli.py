@@ -10,6 +10,7 @@ import flipjump
 
 
 DEFAULT_FJM_WIDTH = 32
+IO_BYTES_ENCODING = 'raw_unicode_escape'
 
 
 # TODO (issue #3) in 'flipjump_output_format.fj':
@@ -24,7 +25,7 @@ def compile_brainfuck_file_to_flipjump_file(brainfuck_file_path: Path, flipjump_
     :param flipjump_file_path: The result flip-jump file will be outputted to this path.
     :param apply_optimizations: If true, optimizes the generated code with some brainfuck-interpreter optimizations.
     """
-    with open(brainfuck_file_path, 'r') as bf_file:
+    with open(brainfuck_file_path, 'r', encoding=IO_BYTES_ENCODING) as bf_file:
         bf_code = bf_file.read()
 
     compiler = Bf2FjCompiler(bf_code)

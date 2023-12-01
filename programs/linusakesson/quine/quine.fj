@@ -259,7 +259,7 @@ inc_data
 loop_end loop_op_1
 loop_op_5:
 dec_data
-// ÿ
+// Ã¿
 sub_ptr 7
 loop_start loop_op_18
 loop_op_15:

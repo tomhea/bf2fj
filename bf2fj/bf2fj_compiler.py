@@ -182,7 +182,7 @@ class Bf2FjCompiler:
     @staticmethod
     def optimize_multiple_pointer_ops(optimized_ops: List[OpsAfterOptimization], current_op: PTR_OPS_TYPE) -> None:
         """
-        Optimize multiple data ops. ">>>>>" -> ">5", "<<<<>><" -> "<3". Does it in place (updates optimized_ops).
+        Optimize multiple pointer ops. ">>>>>" -> ">5", "<<<<>><" -> "<3". Does it in place (updates optimized_ops).
         :param optimized_ops: The current list of the already optimized ops.
         :param current_op: The current processed op (pointer-inc/dec).
         """

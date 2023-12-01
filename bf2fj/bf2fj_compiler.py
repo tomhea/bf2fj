@@ -28,9 +28,7 @@ ADDING_VALUE_BY_OP = {
     BrainfuckNonLoopOps.DEC_PTR: -1,
 }
 DATA_OPS = (BrainfuckNonLoopOps.INC_DATA, BrainfuckNonLoopOps.DEC_DATA)
-DATA_OPS_TYPE = Union[BrainfuckNonLoopOps.INC_DATA, BrainfuckNonLoopOps.DEC_DATA]
 PTR_OPS = (BrainfuckNonLoopOps.INC_PTR, BrainfuckNonLoopOps.DEC_PTR)
-PTR_OPS_TYPE = Union[BrainfuckNonLoopOps.INC_PTR, BrainfuckNonLoopOps.DEC_PTR]
 
 
 def can_cover_256_loop(jump_value: int) -> bool:
@@ -165,7 +163,7 @@ class Bf2FjCompiler:
             raise BrainfuckUnbalancedBrackets("Brainfuck program ended while still in a loop.")
 
     @staticmethod
-    def optimize_multiple_data_ops(optimized_ops: List[OpsAfterOptimization], current_op: DATA_OPS_TYPE) -> None:
+    def optimize_multiple_data_ops(optimized_ops: List[OpsAfterOptimization], current_op: BrainfuckNonLoopOps) -> None:
         """
         Optimize multiple data ops. +++++ -> +5, ----++- -> -3. Does it in place (updates optimized_ops).
         :param optimized_ops: The current list of the already optimized ops.
@@ -180,7 +178,7 @@ class Bf2FjCompiler:
             optimized_ops.append(DataAddOp(value_diff))
 
     @staticmethod
-    def optimize_multiple_pointer_ops(optimized_ops: List[OpsAfterOptimization], current_op: PTR_OPS_TYPE) -> None:
+    def optimize_multiple_pointer_ops(optimized_ops: List[OpsAfterOptimization], current_op: BrainfuckNonLoopOps) -> None:
         """
         Optimize multiple pointer ops. ">>>>>" -> ">5", "<<<<>><" -> "<3". Does it in place (updates optimized_ops).
         :param optimized_ops: The current list of the already optimized ops.

@@ -1,4 +1,5 @@
-(taken from https://sange.fi/esoteric/brainfuck/, all credit of the brainfuck programs in this directory goes there).
+A collection of 3rd party brainfuck programs. All credit of the brainfuck programs should go there.  
+Taken from https://sange.fi/esoteric/brainfuck/.
 
 NOTE: not all programs in this directory have input/output files to be tested with.
 

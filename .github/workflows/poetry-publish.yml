@@ -1,7 +1,7 @@
 # This workflow will upload the new bf2fj python package to pypi, using poetry-publish, everytime a new release is created.
 
 
-name: Python package
+name: Upload python package
 on:
   release:
     types: [published]
@@ -11,6 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build and publish to pypi
-        uses: JRubics/poetry-publish@v1.17
+        uses: JRubics/poetry-publish@v1.16
         with:
           pypi_token: ${{ secrets.PYPI_API_TOKEN }}

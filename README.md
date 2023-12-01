@@ -1,3 +1,7 @@
+[![GitHub](https://img.shields.io/github/license/tomhea/bf2fj)](LICENSE)
+[![Website](https://img.shields.io/website?down_color=red&down_message=down&up_message=up&url=https%3A%2F%2Fesolangs.org%2Fwiki%2FFlipJump)](https://esolangs.org/wiki/FlipJump)
+[![PyPI - Version](https://img.shields.io/pypi/v/bf2fj)](https://pypi.org/project/bf2fj/)
+
 # bf2fj
 A [Brainfuck](https://esolangs.org/wiki/Brainfuck) to [FlipJump](https://github.com/tomhea/flip-jump) Compiler.
 

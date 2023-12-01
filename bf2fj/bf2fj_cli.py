@@ -12,7 +12,8 @@ import flipjump
 DEFAULT_FJM_WIDTH = 32
 
 
-# TODO in 'flipjump_output_format.fj': dont hex.read_byte if ptr haven't changed yet (a flag on a pointer changed?)
+# TODO (issue #3) in 'flipjump_output_format.fj':
+#  dont hex.read_byte if ptr haven't changed yet (a flag on a pointer changed?)
 
 
 def compile_brainfuck_file_to_flipjump_file(brainfuck_file_path: Path, flipjump_file_path: Path) -> None:

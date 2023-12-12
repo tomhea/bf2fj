@@ -15,6 +15,11 @@ INPUT_FILE_NAME = 'input'
 OUTPUT_FILE_NAME = 'output'
 
 
+@pytest.fixture(scope="session")
+def compile_only(pytestconfig) -> bool:
+    return pytestconfig.getoption("compile_only")
+
+
 def get_brainfuck_program_path(program_directory: Path) -> Path:
     extensions_found = []
 
@@ -66,5 +71,5 @@ def run_fj_and_verify_expected_output(flipjump_code_path: Path, fixed_input: byt
 
 
 @pytest.mark.parametrize("program_directory", PROGRAM_DIRECTORIES, ids=PROGRAM_IDS)
-def test_compile_bj__run_fj__verify_output(program_directory: Path):
-    compile_and_test_single_program(program_directory)
+def test_compile_bj__run_fj__verify_output(program_directory: Path, compile_only: bool):
+    compile_and_test_single_program(program_directory, compile_only=compile_only)

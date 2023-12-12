@@ -52,7 +52,8 @@ def get_arguments() -> Tuple[Path, Path, int, bool, bool]:
                         help="path to the compiled flipjump program. "
                              "if you don't specify it, the file will be created in the same directory")
     parser.add_argument("-c", "--cells", default=DEFAULT_NUMBER_OF_BRAINFUCK_DATA_CELLS, type=int,
-                        help="The number of brainfuck cells to be reserved in the compiled flipjump file")
+                        help=f"The number of brainfuck cells to be reserved in the compiled flipjump file "
+                             f"(the default is {DEFAULT_NUMBER_OF_BRAINFUCK_DATA_CELLS}).")
     parser.add_argument("-r", "--run", action='store_true',
                         help="if specified - run the compiled flipjump file.")
     parser.add_argument("-d", "--disable-optimizations", action='store_true',

@@ -33,6 +33,8 @@ Hello World!
 Finished by looping after 0.739s (337,484 ops executed; 85.36% flips, 98.88% jumps).
 ```
 
+Note that you can modify the number of brainfuck cells that'll be reserved in the flipjump file, with `-c` / `--cells`.
+
 ## Optimizations
 This compiler supports optimizations of the generated flipjump code.  
 
@@ -43,6 +45,14 @@ The major optimizations strategies:
 - Optimize multiple pointer ops: `>>>>>` => `>5`, `<<<<>><` => `<3`.
 - Find zeroing loops, and replace them with `*ptr = 0`. If there are data-ops before it, removes them too.
 - `*ptr = 0` + `+5` => `*ptr = 5`.
+
+## Tests:
+I've gathered many brainfuck programs, and put them all inside the programs/ folder.  
+The tests compile each of them to flipjump:
+```
+>> pytest --compile-only
+```
+You can also run the compiled flipjump files (just omit the `--compile-only` flag), but I only added the input / expected-output files to only a portion of the tests, so it won't pass.
 
 ## Licenses:
 The programs/ folder has a collection of 3rd party brainfuck programs, taken from multiple open-source websites. Each folder under programs/ has a README.md that specifies were the brainfuck files came from, and to whom we owe the credit.

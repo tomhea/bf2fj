@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "bf2fj"
-version = "1.0.1"
+version = "1.0.2"
 description = "A brainfuck to flipjump compiler"
 authors = ["Tom Herman <flipjumpproject@gmail.com>"]
 license = "BSD-2-Clause-Simplified"
@@ -28,6 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Other",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
@@ -37,7 +38,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8.1"
-flipjump = "^1.2.2"
+flipjump = ">=1.2.2"
 
 # developement
 pytest = { version = "^7.4.0", optional = true }

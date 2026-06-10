@@ -218,6 +218,23 @@ LINUSAKESSON_DIR = [
 ]
 
 
+# These programs compile fine but are known to fail the run-mode test (they still get compile-tested):
+KNOWN_RUN_FAILURES = {
+    # This quine relies on self-modifying code (program and data share the same memory array in Urban Mueller's
+    #  interpreter). bf2fj keeps the compiled code and the data cells separate, so it can't support it.
+    LINUSAKESSON_PATH / 'quine':
+        "Relies on self-modifying code (program and data share the same memory array), unsupported by bf2fj.",
+    # These programs read input until EOF (the flipjump runtime terminates the program on an EOF-read,
+    #  instead of the common brainfuck convention of returning 0), and their expected-output fixtures are empty.
+    **{
+        ARCHIVE_CODE_GOLF_TEXT / f'cgolf_text_bf_{program_index}':
+            "Reads input until EOF (the flipjump runtime terminates on EOF-read), and its "
+            "expected-output fixture is empty."
+        for program_index in range(1, 9)
+    },
+}
+
+
 PROGRAM_DIRECTORIES = (
     ARCHIVE_QUINE_DIRS +
     SIMPLE_PRINTS_DIRS +

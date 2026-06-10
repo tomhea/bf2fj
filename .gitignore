@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# (anchored to the repo root, so they don't swallow test programs like programs/.../bf-source/lib/)
+/lib/
+/lib64/
 parts/
 sdist/
 var/

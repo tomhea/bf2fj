@@ -86,7 +86,7 @@ def compile_and_run_brainfuck_code(bf_code: str, expected_output: bytes, tmp_pat
     """
     brainfuck_path = tmp_path / 'program.b'
     flipjump_path = tmp_path / 'program.fj'
-    brainfuck_path.write_text(bf_code)
+    brainfuck_path.write_text(bf_code, encoding='utf-8')
     compile_brainfuck_file_to_flipjump_file(brainfuck_path, flipjump_path, apply_optimizations=apply_optimizations)
     run_fj_and_verify_expected_output(flipjump_path, b'', expected_output)
 

@@ -33,13 +33,11 @@ PTR_OPS = (BrainfuckNonLoopOps.INC_PTR, BrainfuckNonLoopOps.DEC_PTR)
 
 def can_cover_256_loop(jump_value: int) -> bool:
     """
-    :param jump_value: some ptr-offset-jump (e.g. "><<<<>" -> "-2").
-    :return: True if its possible reaches index 0 while continuing jumping that jump-value (with mod 256)
-     from any starting index. It does it by checking if gcd(jump_value, 256) == 1.
+    :param jump_value: some data-offset-jump (e.g. "+--+-" -> "-1").
+    :return: True if it's possible to reach value 0 while continuing jumping that jump-value (with mod 256)
+     from any starting value. It does it by checking if gcd(jump_value, 256) == 1, i.e. if jump_value is odd.
     """
-    abs_jump = abs(jump_value)
-    is_0_or_power_of_2 = (abs_jump & (abs_jump - 1)) == 0
-    return not is_0_or_power_of_2 or abs_jump == 1
+    return jump_value % 2 == 1
 
 
 def is_loop_end(op: OpsBeforeOptimization) -> bool:
@@ -200,10 +198,17 @@ class Bf2FjCompiler:
         :param current_op: The current op.
         :return: True if current op closes a loop that can be optimized into "*ptr = 0"
         """
-        return is_loop_end(current_op) and \
-            len(optimized_ops) >= 2 and is_loop_start(optimized_ops[-2]) and \
-            isinstance(optimized_ops[LAST_INDEX], OptimizationDataOp) and \
-            can_cover_256_loop(optimized_ops[LAST_INDEX].value)
+        if not (is_loop_end(current_op) and len(optimized_ops) >= 2 and is_loop_start(optimized_ops[-2])):
+            return False
+
+        loop_body_op = optimized_ops[LAST_INDEX]
+        if isinstance(loop_body_op, DataSetOp):
+            # The loop body sets the data to a constant. If that constant is 0 the loop zeroes the data;
+            #  otherwise the loop never terminates (for a non-zero starting value), so it can't be optimized.
+            return loop_body_op.value % 256 == 0
+        if isinstance(loop_body_op, DataAddOp):
+            return can_cover_256_loop(loop_body_op.value)
+        return False
 
     @staticmethod
     def optimize_zeroing_loop(optimized_ops: List[OpsAfterOptimization]) -> None:

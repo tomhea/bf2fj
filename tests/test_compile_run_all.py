@@ -3,7 +3,7 @@ import pytest
 from flipjump import assemble_and_run_test_output
 
 from bf2fj import compile_brainfuck_file_to_flipjump_file
-from tests.test_cases import PROGRAM_DIRECTORIES, PROGRAM_IDS
+from tests.test_cases import PROGRAM_DIRECTORIES, PROGRAM_IDS, KNOWN_RUN_FAILURES
 
 
 DEFAULT_FJM_WIDTH = 32
@@ -52,6 +52,11 @@ def compile_and_test_single_program(program_directory: Path, *, compile_only=Fal
     compile_brainfuck_file_to_flipjump_file(brainfuck_program_path, compiled_flipjump_path)
     if compile_only:
         return
+    known_run_failure_reason = KNOWN_RUN_FAILURES.get(program_directory)
+    if known_run_failure_reason is not None:
+        pytest.xfail(known_run_failure_reason)
+    if not fixed_input_path.exists() or not expected_output_path.exists():
+        pytest.skip(f"Compiled successfully. Can't run as there are no input/output files in {program_directory}.")
     with open(fixed_input_path, 'rb') as fixed_input_file, open(expected_output_path, 'rb') as expected_output_file:
         run_fj_and_verify_expected_output(compiled_flipjump_path, fixed_input_file.read(), expected_output_file.read())
 

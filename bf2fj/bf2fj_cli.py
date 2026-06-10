@@ -10,7 +10,8 @@ import flipjump
 
 
 DEFAULT_FJM_WIDTH = 32
-IO_BYTES_ENCODING = 'raw_unicode_escape'
+IO_BYTES_ENCODING = 'raw_unicode_escape'  # lenient encoding, as brainfuck files may contain arbitrary bytes.
+FJ_FILE_ENCODING = 'utf-8'  # the flipjump assembler expects utf-8 files (also deterministic across platforms).
 
 
 # TODO (issue #3) in 'flipjump_output_format.fj':
@@ -37,7 +38,7 @@ def compile_brainfuck_file_to_flipjump_file(
     with PrintTimer('  compile bf->fj:  '):
         fj_code = compiler.get_compiled_code(apply_optimizations=apply_optimizations)
 
-    with open(flipjump_file_path, 'w') as fj_file:
+    with open(flipjump_file_path, 'w', encoding=FJ_FILE_ENCODING, newline='\n') as fj_file:
         fj_file.write(fj_code)
 
 

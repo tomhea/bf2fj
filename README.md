@@ -13,6 +13,7 @@ See also the [C to FlipJump Compiler](https://github.com/tomhea/c2fj).
 ```
 >>> pip install bf2fj
 ```
+Requires python 3.10-3.14.
 
 ## Run the compiler:
 
@@ -54,7 +55,10 @@ The tests compile each of them to flipjump:
 ```
 >> pytest --compile-only
 ```
-You can also run the compiled flipjump files (just omit the `--compile-only` flag), but I only added the input / expected-output files to only a portion of the tests, so it won't pass.
+You can also run the compiled flipjump files and verify their output (just omit the `--compile-only` flag).
+Programs without input / expected-output files are skipped in this mode (they only get compile-tested),
+and a few programs that are known to be unsupported are marked as expected-failures (see `KNOWN_RUN_FAILURES` in [tests/test_cases.py](tests/test_cases.py)).
+Note that some of the programs (e.g. the quines) take many minutes to run.
 
 ## Licenses:
 The programs/ folder has a collection of 3rd party brainfuck programs, taken from multiple open-source websites. Each folder under programs/ has a README.md that specifies were the brainfuck files came from, and to whom we owe the credit.

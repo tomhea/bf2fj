@@ -1,0 +1,32 @@
+# Compiles all the brainfuck test programs and runs the unit tests, on every supported python version.
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+      - name: Install package with test dependencies
+        run: pip install .[tests]
+      - name: Run unit tests
+        run: pytest tests/test_optimizer.py -q
+      - name: Compile all test programs
+        run: pytest tests/test_compile_run_all.py --compile-only -q

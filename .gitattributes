@@ -1,9 +1,7 @@
-# Show statistics for FlipJump files (as Text files, until FlipJump is Supported in linguist/lib/linguist/languages.yml).
-*.fj linguist-language=Text linguist-detectable
+# Show statistics for FlipJump files (as Assembly files, until FlipJump is Supported in linguist/lib/linguist/languages.yml).
+*.fj linguist-language=Assembly linguist-detectable=true
 
-# Brainfuck programs and their input/output files are byte-exact test fixtures (e.g. quines) -
-#  never apply line-ending conversion to them.
-# The .fj files are generated (always with \n line endings), so keep them byte-exact too.
+# Keep the .fj and .fj files byte-exact (e.g. keep \n line endings).
 *.b -text
 *.bf -text
 *.fj -text
